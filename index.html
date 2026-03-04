@@ -505,6 +505,7 @@
           .from('submissions')
           .select('id, photos, species_id, species(name_zh)')
           .eq('status', 'approved')
+          .not('species_id', 'is', null)
           .order('reviewed_at', { ascending: false })
           .limit(8);
 
