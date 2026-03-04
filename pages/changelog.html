@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>網站更新誌 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .cl-wrap { max-width: 720px; margin: 0 auto; }
+
+    .cl-item {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 0 28px;
+      margin-bottom: 0;
+    }
+    .cl-item + .cl-item { border-top: 1px solid var(--color-border); }
+
+    .cl-item__left {
+      padding: 28px 0;
+      text-align: right;
+    }
+    .cl-item__version {
+      display: inline-block;
+      background: var(--color-secondary);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 99px;
+      margin-bottom: 6px;
+    }
+    .cl-item__date {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+    }
+
+    .cl-item__right {
+      padding: 28px 0;
+      border-left: 2px solid var(--color-border);
+      padding-left: 28px;
+      position: relative;
+    }
+    .cl-item__right::before {
+      content: '';
+      position: absolute;
+      left: -7px;
+      top: 36px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--color-secondary);
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px var(--color-secondary);
+    }
+    .cl-item:first-child .cl-item__right::before {
+      background: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-primary);
+    }
+
+    .cl-item__title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--color-dark);
+      margin-bottom: 10px;
+    }
+    .cl-item__content {
+      font-size: 0.92rem;
+      line-height: 1.85;
+      color: var(--color-text);
+    }
+    .cl-item__content ul { padding-left: 18px; margin: 6px 0; }
+    .cl-item__content li { margin-bottom: 4px; }
+
+    .cl-empty {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--color-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">Changelog</div>
+        <h1 class="page-hero__title">網站更新誌</h1>
+        <p class="page-hero__subtitle">紀錄網站的功能更新與資料庫擴充</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container">
+        <div class="cl-wrap">
+          <div id="clList"><div class="spinner" style="margin:60px auto;"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/template.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data, error } = await supabase
+        .from('changelogs')
+        .select('*')
+        .order('logged_at', { ascending: false });
+
+      const el = document.getElementById('clList');
+
+      if (error || !data?.length) {
+        el.innerHTML = '<div class="cl-empty">目前尚無更新記錄</div>';
+        return;
+      }
+
+      el.innerHTML = data.map(item => `
+        <div class="cl-item">
+          <div class="cl-item__left">
+            ${item.version ? `<span class="cl-item__version">${item.version}</span>` : ''}
+            <span class="cl-item__date">${item.logged_at || ''}</span>
+          </div>
+          <div class="cl-item__right">
+            <div class="cl-item__title">${item.title || '更新'}</div>
+            <div class="cl-item__content">${item.content || ''}</div>
+          </div>
+        </div>`).join('');
+    });
+  </script>
+</body>
+</html>

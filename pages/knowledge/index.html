@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知識庫 — 台灣海蛞蝓紀錄</title>
+  <meta name="description" content="深入認識海蛞蝓的生態習性、分類演進與有趣故事。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link rel="stylesheet" href="../../css/responsive.css">
+  <style>
+    .article-card {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+      transition: var(--transition);
+      text-decoration: none;
+      color: var(--color-text);
+    }
+    .article-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+      color: var(--color-text);
+    }
+    .article-card__img {
+      width: 100%;
+      height: 100%;
+      min-height: 180px;
+      object-fit: cover;
+      background: var(--color-border);
+    }
+    .article-card__body {
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .article-card__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .article-card__title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .article-card__excerpt {
+      font-size: 0.92rem;
+      color: var(--color-text-muted);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+    .article-card__meta {
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+    }
+    .articles-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .article-card { grid-template-columns: 1fr; }
+      .article-card__img { min-height: 200px; max-height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">Knowledge Base</div>
+        <h1 class="page-hero__title">知識庫</h1>
+        <p class="page-hero__subtitle">深入認識海蛞蝓的生態習性、分類演進與有趣故事</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container container--narrow" style="max-width:900px;">
+
+        <!-- 標籤篩選 -->
+        <div id="tagFilter" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:32px;"></div>
+
+        <!-- 文章列表 -->
+        <div class="articles-list" id="articleList">
+          <div class="spinner"></div>
+        </div>
+
+        <!-- 空狀態 -->
+        <div id="emptyState" class="empty-state" style="display:none;">
+          <div class="empty-state__icon">📖</div>
+          <p class="empty-state__text">這個分類目前沒有文章</p>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/template.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script>
+    let allArticles = [];
+    let activeTag   = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadTags();
+      await loadArticles();
+    });
+
+    async function loadTags() {
+      const { data } = await supabase
+        .from('article_tags')
+        .select('tag_id, tags(id, name)')
+        .limit(100);
+
+      if (!data?.length) return;
+
+      // 統計每個 tag 出現次數（去重）
+      const tagMap = {};
+      data.forEach(({ tags: tag }) => {
+        if (tag && !tagMap[tag.id]) tagMap[tag.id] = tag;
+      });
+      const tags = Object.values(tagMap);
+
+      const container = document.getElementById('tagFilter');
+      container.innerHTML = `
+        <span class="tag ${!activeTag ? 'selected' : ''}" onclick="filterByTag(null)">全部</span>
+        ${tags.map(t => `
+          <span class="tag ${activeTag === t.id ? 'selected' : ''}"
+                onclick="filterByTag(${t.id})">${t.name}</span>`).join('')}`;
+    }
+
+    async function loadArticles() {
+      const { data } = await supabase
+        .from('articles')
+        .select('id, title, excerpt, cover_image, published_at, article_tags(tags(id,name))')
+        .eq('published', true)
+        .order('published_at', { ascending: false });
+
+      allArticles = data || [];
+      renderArticles(allArticles);
+    }
+
+    function filterByTag(tagId) {
+      activeTag = tagId;
+      document.querySelectorAll('#tagFilter .tag').forEach(el => el.classList.remove('selected'));
+      event.target.classList.add('selected');
+
+      const filtered = tagId
+        ? allArticles.filter(a => a.article_tags?.some(at => at.tags?.id === tagId))
+        : allArticles;
+      renderArticles(filtered);
+    }
+
+    function renderArticles(articles) {
+      const list  = document.getElementById('articleList');
+      const empty = document.getElementById('emptyState');
+
+      if (!articles.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = articles.map(a => {
+        const tags = a.article_tags?.map(at => at.tags).filter(Boolean) || [];
+        return `
+        <a href="article.html?id=${a.id}" class="article-card">
+          <img class="article-card__img"
+               src="${a.cover_image || ''}" alt="${a.title}"
+               onerror="this.style.background='var(--color-border)'">
+          <div class="article-card__body">
+            <div class="article-card__tags">
+              ${tags.map(t => `<span class="tag">${t.name}</span>`).join('')}
+            </div>
+            <div class="article-card__title">${a.title}</div>
+            <div class="article-card__excerpt">${a.excerpt || ''}</div>
+            <div class="article-card__meta">
+              ${a.published_at ? new Date(a.published_at).toLocaleDateString('zh-Hant', { year:'numeric', month:'long', day:'numeric' }) : ''}
+            </div>
+          </div>
+        </a>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>

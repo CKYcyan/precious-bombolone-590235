@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理員登入 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, var(--color-dark) 0%, #0d3d30 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-box {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-logo__title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: 4px;
+    }
+
+    .login-logo__sub {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+    }
+
+    .login-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .login-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 12px;
+      font-size: 1rem;
+      margin-top: 8px;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.88rem;
+      color: var(--color-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo__title">台灣海蛞蝓紀錄</div>
+      <div class="login-logo__sub">管理員後台</div>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" placeholder="your@email.com" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">密碼</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn--primary login-btn" id="loginBtn">
+        登入
+      </button>
+    </form>
+
+    <a href="../index.html" class="back-link">← 返回網站首頁</a>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script>
+    function showError(msg) {
+      const el = document.getElementById('loginError');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function resetBtn() {
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = false;
+      btn.textContent = '登入';
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 檢查 Supabase 是否正確初始化
+      if (typeof supabase === 'undefined') {
+        showError('系統初始化失敗，請重新整理頁面。');
+        return;
+      }
+      // 已登入則直接進後台
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: profile } = await supabase
+            .from('profiles').select('role').eq('id', session.user.id).single();
+          if (profile?.role === 'admin') {
+            window.location.href = 'index.html';
+          }
+        }
+      } catch (e) {
+        console.error('Session 檢查失敗:', e);
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn      = document.getElementById('loginBtn');
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      btn.disabled = true;
+      btn.textContent = '登入中...';
+      document.getElementById('loginError').style.display = 'none';
+
+      try {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (authError) {
+          showError('帳號或密碼錯誤，請再試一次。（' + authError.message + '）');
+          resetBtn();
+          return;
+        }
+
+        // 確認是管理員
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles').select('role').eq('id', data.user.id).single();
+
+        if (profileError) {
+          showError('讀取帳號資料失敗：' + profileError.message);
+          resetBtn();
+          return;
+        }
+
+        if (profile?.role !== 'admin') {
+          await supabase.auth.signOut();
+          showError('此帳號沒有管理員權限。');
+          resetBtn();
+          return;
+        }
+
+        window.location.href = 'index.html';
+
+      } catch (err) {
+        showError('發生未知錯誤：' + err.message + '（請確認是否透過 http:// 開啟，而非 file://）');
+        resetBtn();
+      }
+    });
+  </script>
+</body>
+</html>

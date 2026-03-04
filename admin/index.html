@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>儀表板 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <div id="sidebarPlaceholder"></div>
+
+    <main class="admin-main">
+      <div class="admin-topbar">
+        <div class="admin-topbar__title">儀表板</div>
+        <div class="admin-topbar__actions">
+          <span id="adminName" style="font-size:0.9rem; color:var(--color-text-muted);"></span>
+        </div>
+      </div>
+
+      <div class="admin-content">
+
+        <!-- 統計卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-card__label">物種總數</div>
+            <div class="stat-card__number" id="statSpecies">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">知識庫文章</div>
+            <div class="stat-card__number" id="statArticles">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">待審核投稿</div>
+            <div class="stat-card__number" id="statPending" style="color:#e67e22;">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">會員人數</div>
+            <div class="stat-card__number" id="statMembers">—</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+
+          <!-- 待審核投稿 -->
+          <div class="panel">
+            <div class="panel__header">
+              <div class="panel__title">待審核投稿</div>
+              <a href="submissions.html" class="btn btn--outline btn--sm">查看全部</a>
+            </div>
+            <div id="pendingList">
+              <div class="spinner"></div>
+            </div>
+          </div>
+
+          <!-- 最新物種 -->
+          <div class="panel">
+            <div class="panel__header">
+              <div class="panel__title">最新物種</div>
+              <a href="species.html" class="btn btn--outline btn--sm">管理物種</a>
+            </div>
+            <div id="recentSpeciesList">
+              <div class="spinner"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="admin.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const auth = await requireAdmin();
+      if (!auth) return;
+
+      document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('dashboard');
+      document.getElementById('adminName').textContent = auth.profile.display_name || auth.session.user.email;
+
+      await loadStats();
+      await loadPendingSubmissions();
+      await loadRecentSpecies();
+    });
+
+    async function loadStats() {
+      const [
+        { count: speciesCount },
+        { count: articlesCount },
+        { count: pendingCount },
+        { count: membersCount }
+      ] = await Promise.all([
+        supabase.from('species').select('*', { count: 'exact', head: true }),
+        supabase.from('articles').select('*', { count: 'exact', head: true }),
+        supabase.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      ]);
+
+      document.getElementById('statSpecies').textContent  = speciesCount  ?? 0;
+      document.getElementById('statArticles').textContent = articlesCount ?? 0;
+      document.getElementById('statPending').textContent  = pendingCount  ?? 0;
+      document.getElementById('statMembers').textContent  = membersCount  ?? 0;
+    }
+
+    async function loadPendingSubmissions() {
+      const { data } = await supabase
+        .from('submissions')
+        .select('id, submitter_name, species_guess, created_at, photos')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const el = document.getElementById('pendingList');
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="empty-state"><p class="empty-state__text">目前沒有待審核投稿</p></div>';
+        return;
+      }
+      el.innerHTML = `<table class="data-table">
+        <thead><tr><th>縮圖</th><th>投稿者</th><th>物種猜測</th><th>時間</th><th></th></tr></thead>
+        <tbody>${data.map(s => `
+          <tr>
+            <td><img class="data-table__thumb" src="${s.photos?.[0] || ''}" onerror="this.style.background='var(--color-border)'"></td>
+            <td>${s.submitter_name}</td>
+            <td>${s.species_guess || '不確定'}</td>
+            <td style="color:var(--color-text-muted); font-size:0.82rem;">${new Date(s.created_at).toLocaleDateString('zh-Hant')}</td>
+            <td><a href="submissions.html?id=${s.id}" class="btn btn--outline btn--sm">審核</a></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    }
+
+    async function loadRecentSpecies() {
+      const { data } = await supabase
+        .from('species')
+        .select('id, name_zh, name_sci, cover_image, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const el = document.getElementById('recentSpeciesList');
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="empty-state"><p class="empty-state__text">尚未新增物種</p></div>';
+        return;
+      }
+      el.innerHTML = `<table class="data-table">
+        <thead><tr><th>縮圖</th><th>中文名</th><th>學名</th><th></th></tr></thead>
+        <tbody>${data.map(s => `
+          <tr>
+            <td><img class="data-table__thumb" src="${s.cover_image || ''}" onerror="this.style.background='var(--color-border)'"></td>
+            <td>${s.name_zh}</td>
+            <td class="sci-name" style="font-size:0.85rem;">${s.name_sci}</td>
+            <td><a href="species-edit.html?id=${s.id}" class="btn btn--outline btn--sm">編輯</a></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    }
+  </script>
+</body>
+</html>

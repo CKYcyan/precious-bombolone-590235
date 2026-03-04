@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>藝廊管理 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .gallery-item {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      background: #fff;
+      transition: var(--transition);
+    }
+    .gallery-item:hover { box-shadow: var(--shadow-md); }
+    .gallery-item__img {
+      width: 100%;
+      aspect-ratio: 3/2;
+      object-fit: cover;
+      background: var(--color-border);
+      display: block;
+    }
+    .gallery-item__body { padding: 12px; }
+    .gallery-item__species { font-weight: 700; font-size: 0.9rem; color: var(--color-dark); }
+    .gallery-item__meta   { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 4px; }
+    .gallery-item__actions { display: flex; gap: 6px; margin-top: 10px; }
+    @media (max-width: 1024px) { .gallery-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px)  { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">藝廊管理</div>
+      <div class="admin-topbar__actions">
+        <button onclick="openUploadModal()" class="btn btn--primary btn--sm">＋ 上傳照片</button>
+      </div>
+    </div>
+    <div class="admin-content">
+      <div class="panel">
+        <div class="panel__header">
+          <div class="panel__title">藝廊照片 <span id="totalCount" style="color:var(--color-text-muted);font-weight:400;font-size:0.9rem;"></span></div>
+        </div>
+        <div class="panel__body">
+          <div id="galleryGrid"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 上傳照片 Modal -->
+<div class="confirm-overlay" id="uploadModal">
+  <div class="confirm-box" style="max-width:520px; width:95%;">
+    <div class="confirm-box__title">上傳藝廊照片</div>
+    <div style="margin-top:20px; display:flex; flex-direction:column; gap:14px;">
+
+      <div>
+        <label class="form-label">照片 <span class="required">*</span></label>
+        <div class="upload-zone" onclick="document.getElementById('photoInput').click()" id="uploadZone">
+          <div class="upload-zone__icon">🖼</div>
+          <div class="upload-zone__text"><strong>點擊選擇</strong>照片（可多選）</div>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
+        <div id="photoPreviewList" class="upload-preview"></div>
+      </div>
+
+      <div>
+        <label class="form-label">關聯物種</label>
+        <select id="speciesSelect" class="form-select">
+          <option value="">— 不關聯物種 —</option>
+        </select>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label class="form-label">攝影者</label>
+          <input type="text" id="photographer" class="form-input" placeholder="攝影者姓名">
+        </div>
+        <div>
+          <label class="form-label">拍攝地點</label>
+          <input type="text" id="location" class="form-input" placeholder="例：小琉球">
+        </div>
+      </div>
+
+      <div>
+        <label class="form-label">拍攝日期</label>
+        <input type="date" id="takenAt" class="form-input">
+      </div>
+
+      <div>
+        <label class="form-label">說明</label>
+        <textarea id="description" class="form-textarea" rows="2" placeholder="照片說明（選填）"></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+      <button class="btn btn--outline btn--sm" onclick="closeUploadModal()">取消</button>
+      <button class="btn btn--primary btn--sm" id="uploadBtn" onclick="submitUpload()">上傳</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let selectedFiles = [];
+  let allSpecies    = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('gallery');
+    await loadGallery();
+    await loadSpeciesList();
+
+    document.getElementById('photoInput').addEventListener('change', (e) => {
+      selectedFiles = Array.from(e.target.files);
+      const preview = document.getElementById('photoPreviewList');
+      preview.innerHTML = selectedFiles.map((f, i) => `
+        <div class="upload-preview__item">
+          <img class="upload-preview__img" src="${URL.createObjectURL(f)}">
+          <button class="upload-preview__remove" onclick="removeFile(${i})">✕</button>
+        </div>`).join('');
+    });
+  });
+
+  function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    document.getElementById('photoPreviewList').innerHTML = selectedFiles.map((f, i) => `
+      <div class="upload-preview__item">
+        <img class="upload-preview__img" src="${URL.createObjectURL(f)}">
+        <button class="upload-preview__remove" onclick="removeFile(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  async function loadSpeciesList() {
+    const { data } = await supabase.from('species').select('id, name_zh, name_sci').order('name_zh');
+    allSpecies = data || [];
+    const sel = document.getElementById('speciesSelect');
+    allSpecies.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = `${s.name_zh} (${s.name_sci})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadGallery() {
+    const { data } = await supabase
+      .from('gallery')
+      .select('*, species(name_zh, name_sci)')
+      .order('sort_order', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    const el = document.getElementById('galleryGrid');
+    const items = data || [];
+    document.getElementById('totalCount').textContent = `（共 ${items.length} 張）`;
+
+    if (!items.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🖼</div><p class="empty-state__text">尚無照片，點右上角上傳</p></div>';
+      return;
+    }
+
+    el.innerHTML = `<div class="gallery-grid">${items.map(item => `
+      <div class="gallery-item" id="galleryItem_${item.id}">
+        <img class="gallery-item__img" src="${item.image_url}" alt="${item.species?.name_zh||''}"
+             onerror="this.style.background='var(--color-border)'">
+        <div class="gallery-item__body">
+          <div class="gallery-item__species">${item.species?.name_zh || '未指定物種'}</div>
+          <div class="gallery-item__meta sci-name">${item.species?.name_sci || ''}</div>
+          <div class="gallery-item__meta">${[item.photographer, item.location, item.taken_at].filter(Boolean).join(' · ')}</div>
+          <div class="gallery-item__actions">
+            <button onclick="deletePhoto(${item.id})" class="btn btn--sm" style="border:1px solid #fecaca;color:#b91c1c;width:100%;">刪除</button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function openUploadModal()  { document.getElementById('uploadModal').classList.add('show'); }
+  function closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('show');
+    selectedFiles = [];
+    document.getElementById('photoPreviewList').innerHTML = '';
+    document.getElementById('photoInput').value = '';
+  }
+
+  async function submitUpload() {
+    if (!selectedFiles.length) { showToast('請選擇照片', 'error'); return; }
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+    btn.textContent = '上傳中…';
+
+    const speciesId    = document.getElementById('speciesSelect').value || null;
+    const photographer = document.getElementById('photographer').value.trim() || null;
+    const location     = document.getElementById('location').value.trim() || null;
+    const takenAt      = document.getElementById('takenAt').value || null;
+    const description  = document.getElementById('description').value.trim() || null;
+
+    try {
+      for (const file of selectedFiles) {
+        const imageUrl = await uploadImage(file, 'gallery-photos');
+        await supabase.from('gallery').insert({
+          image_url: imageUrl, species_id: speciesId,
+          photographer, location, taken_at: takenAt, description
+        });
+      }
+      showToast(`${selectedFiles.length} 張照片上傳成功`);
+      closeUploadModal();
+      await loadGallery();
+    } catch (err) {
+      showToast('上傳失敗：' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '上傳';
+    }
+  }
+
+  async function deletePhoto(id) {
+    showConfirm('刪除照片', '確定要刪除這張照片嗎？', async () => {
+      const { error } = await supabase.from('gallery').delete().eq('id', id);
+      if (error) { showToast('刪除失敗', 'error'); return; }
+      document.getElementById(`galleryItem_${id}`)?.remove();
+      showToast('照片已刪除');
+    });
+  }
+</script>
+</body>
+</html>

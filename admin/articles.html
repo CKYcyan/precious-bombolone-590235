@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章管理 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">文章管理</div>
+      <div class="admin-topbar__actions">
+        <a href="article-edit.html" class="btn btn--primary btn--sm">＋ 新增文章</a>
+      </div>
+    </div>
+    <div class="admin-content">
+
+      <div class="panel" style="margin-bottom:24px;">
+        <div class="panel__body" style="padding:16px 24px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <input type="text" id="searchInput" class="form-input" placeholder="搜尋文章標題…" style="max-width:300px;">
+          <select id="filterStatus" class="form-select" style="max-width:160px;">
+            <option value="">全部狀態</option>
+            <option value="published">已發布</option>
+            <option value="draft">草稿</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__header">
+          <div class="panel__title">所有文章 <span id="totalCount" style="color:var(--color-text-muted); font-weight:400; font-size:0.9rem;"></span></div>
+        </div>
+        <div id="articleList"><div class="spinner"></div></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let allArticles = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('articles');
+    await loadArticles();
+
+    document.getElementById('searchInput').addEventListener('input', filterArticles);
+    document.getElementById('filterStatus').addEventListener('change', filterArticles);
+  });
+
+  async function loadArticles() {
+    const { data, error } = await supabase
+      .from('articles')
+      .select('id, title, excerpt, cover_image, published, published_at, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) { showToast('載入失敗', 'error'); return; }
+    allArticles = data || [];
+    document.getElementById('totalCount').textContent = `（共 ${allArticles.length} 篇）`;
+    renderTable(allArticles);
+  }
+
+  function filterArticles() {
+    const q      = document.getElementById('searchInput').value.trim().toLowerCase();
+    const status = document.getElementById('filterStatus').value;
+    let list = allArticles;
+    if (q)      list = list.filter(a => a.title.toLowerCase().includes(q));
+    if (status === 'published') list = list.filter(a => a.published);
+    if (status === 'draft')     list = list.filter(a => !a.published);
+    renderTable(list);
+  }
+
+  function renderTable(data) {
+    const el = document.getElementById('articleList');
+    if (!data.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">📖</div><p class="empty-state__text">尚無文章</p></div>';
+      return;
+    }
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>縮圖</th><th>標題</th><th>摘要</th><th>狀態</th><th>日期</th><th>操作</th></tr></thead>
+      <tbody>${data.map(a => `
+        <tr>
+          <td><img class="data-table__thumb" src="${a.cover_image||''}" onerror="this.style.background='var(--color-border)'"></td>
+          <td><strong>${a.title}</strong></td>
+          <td style="color:var(--color-text-muted); font-size:0.85rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.excerpt||''}</td>
+          <td><span class="badge ${a.published ? 'badge--approved' : 'badge--pending'}">${a.published ? '已發布' : '草稿'}</span></td>
+          <td style="font-size:0.82rem; color:var(--color-text-muted);">${a.published_at ? new Date(a.published_at).toLocaleDateString('zh-Hant') : '—'}</td>
+          <td>
+            <a href="article-edit.html?id=${a.id}" class="btn btn--outline btn--sm">編輯</a>
+            <button onclick="deleteArticle(${a.id},'${a.title.replace(/'/g,"\'")}')" class="btn btn--sm" style="border:1px solid #fecaca;color:#b91c1c;margin-left:4px;">刪除</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  async function deleteArticle(id, title) {
+    showConfirm('刪除文章', `確定要刪除「${title}」嗎？`, async () => {
+      const { error } = await supabase.from('articles').delete().eq('id', id);
+      if (error) { showToast('刪除失敗', 'error'); return; }
+      showToast('文章已刪除');
+      allArticles = allArticles.filter(a => a.id !== id);
+      renderTable(allArticles);
+      document.getElementById('totalCount').textContent = `（共 ${allArticles.length} 篇）`;
+    });
+  }
+</script>
+</body>
+</html>

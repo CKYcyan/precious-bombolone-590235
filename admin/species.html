@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>物種管理 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">物種管理</div>
+      <div class="admin-topbar__actions">
+        <a href="species-edit.html" class="btn btn--primary btn--sm">＋ 新增物種</a>
+      </div>
+    </div>
+    <div class="admin-content">
+
+      <!-- 搜尋列 -->
+      <div class="panel" style="margin-bottom:24px;">
+        <div class="panel__body" style="padding:16px 24px;">
+          <input type="text" id="searchInput" class="form-input" placeholder="搜尋中文名或學名…" style="max-width:360px;">
+        </div>
+      </div>
+
+      <!-- 物種列表 -->
+      <div class="panel">
+        <div class="panel__header">
+          <div class="panel__title">所有物種 <span id="totalCount" style="color:var(--color-text-muted); font-weight:400; font-size:0.9rem;"></span></div>
+        </div>
+        <div id="speciesList"><div class="spinner"></div></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let allSpecies = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('species');
+    await loadSpecies();
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = q
+        ? allSpecies.filter(s => s.name_zh.toLowerCase().includes(q) || s.name_sci.toLowerCase().includes(q))
+        : allSpecies;
+      renderSpeciesTable(filtered);
+    });
+  });
+
+  async function loadSpecies() {
+    const { data, error } = await supabase
+      .from('species')
+      .select('id, name_zh, name_sci, taxon_order, taxon_family, cover_image, published, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) { showToast('載入失敗', 'error'); return; }
+    allSpecies = data || [];
+
+    // 沒有封面的物種 → 從 submissions 補第一張照片
+    const nocover = allSpecies.filter(s => !s.cover_image);
+    if (nocover.length > 0) {
+      const { data: subs } = await supabase
+        .from('submissions').select('species_id, photos')
+        .in('species_id', nocover.map(s => s.id))
+        .eq('status', 'approved').not('photos', 'is', null);
+      const photoMap = {};
+      (subs || []).forEach(sub => {
+        if (!photoMap[sub.species_id] && Array.isArray(sub.photos) && sub.photos[0])
+          photoMap[sub.species_id] = sub.photos[0];
+      });
+      allSpecies = allSpecies.map(s => ({ ...s, cover_image: s.cover_image || photoMap[s.id] || null }));
+    }
+
+    document.getElementById('totalCount').textContent = `（共 ${allSpecies.length} 種）`;
+    renderSpeciesTable(allSpecies);
+  }
+
+  function renderSpeciesTable(data) {
+    const el = document.getElementById('speciesList');
+    if (!data.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🐚</div><p class="empty-state__text">尚無物種資料</p></div>';
+      return;
+    }
+    el.innerHTML = `<table class="data-table">
+      <thead>
+        <tr>
+          <th>縮圖</th>
+          <th>中文名</th>
+          <th>學名</th>
+          <th>目</th>
+          <th>科</th>
+          <th>狀態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map(s => `
+        <tr>
+          <td>
+            ${s.cover_image
+              ? `<img class="data-table__thumb" src="${s.cover_image}" alt="${s.name_zh}" onerror="this.onerror=null; this.style.visibility='hidden'">`
+              : `<div class="data-table__thumb" style="background:var(--color-border);"></div>`}
+          </td>
+          <td><strong>${s.name_zh}</strong></td>
+          <td class="sci-name" style="font-size:0.85rem;">${s.name_sci}</td>
+          <td style="font-size:0.85rem; color:var(--color-text-muted);">${s.taxon_order||'—'}</td>
+          <td style="font-size:0.85rem; color:var(--color-text-muted);">${s.taxon_family||'—'}</td>
+          <td>
+            <span class="badge ${s.published ? 'badge--approved' : 'badge--pending'}">
+              ${s.published ? '已發布' : '草稿'}
+            </span>
+          </td>
+          <td>
+            <a href="species-edit.html?id=${s.id}" class="btn btn--outline btn--sm">編輯</a>
+            <button onclick="deleteSpecies(${s.id}, '${s.name_zh}')" class="btn btn--sm" style="border:1px solid #fecaca; color:#b91c1c; margin-left:4px;">刪除</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  async function deleteSpecies(id, name) {
+    showConfirm('刪除物種', `確定要刪除「${name}」嗎？此操作無法復原。`, async () => {
+      const { error } = await supabase.from('species').delete().eq('id', id);
+      if (error) { showToast('刪除失敗', 'error'); return; }
+      showToast(`已刪除「${name}」`);
+      allSpecies = allSpecies.filter(s => s.id !== id);
+      renderSpeciesTable(allSpecies);
+      document.getElementById('totalCount').textContent = `（共 ${allSpecies.length} 種）`;
+    });
+  }
+</script>
+</body>
+</html>

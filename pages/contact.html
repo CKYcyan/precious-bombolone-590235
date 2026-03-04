@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聯絡我們 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+  <main class="main-content">
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">Contact</div>
+        <h1 class="page-hero__title">聯絡我們</h1>
+      </div>
+    </div>
+    <section class="section">
+      <div class="container container--narrow">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:start;">
+
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:700; margin-bottom:20px; color:var(--color-dark);">傳送訊息</h2>
+            <div id="successMsg" style="display:none; background:#d1e7dd; border:1px solid #a3cfbb; border-radius:var(--radius-sm); padding:14px 18px; color:#0a5130; margin-bottom:20px;">
+              感謝您的留言，我們會盡快回覆！
+            </div>
+            <form id="contactForm">
+              <div class="form-group">
+                <label class="form-label">姓名 <span class="required">*</span></label>
+                <input type="text" id="name" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email <span class="required">*</span></label>
+                <input type="email" id="email" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">留言 <span class="required">*</span></label>
+                <textarea id="message" class="form-textarea" rows="5" required></textarea>
+              </div>
+              <button type="submit" class="btn btn--primary" id="submitBtn">送出留言</button>
+            </form>
+          </div>
+
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:700; margin-bottom:20px; color:var(--color-dark);">聯絡資訊</h2>
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div>
+                <div style="font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--color-text-muted); margin-bottom:6px;">Email</div>
+                <a href="mailto:e29314651709@gmail.com" style="color:var(--color-secondary);">e29314651709@gmail.com</a>
+              </div>
+              <div>
+                <div style="font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--color-text-muted); margin-bottom:6px;">Instagram</div>
+                <a href="https://www.instagram.com/cky_photo_wildlife/" target="_blank" style="color:var(--color-secondary);">@CKY_Photo_wildlife</a>
+              </div>
+              <div>
+                <div style="font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--color-text-muted); margin-bottom:6px;">Facebook</div>
+                <a href="https://www.facebook.com/profile.php?id=61575695889861" target="_blank" style="color:var(--color-secondary);">台灣海蛞蝓紀錄</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+  <div id="footer-placeholder"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/template.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    document.getElementById('contactForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '送出中…';
+
+      // 直接用 mailto 或可以串接 email 服務
+      // 暫時模擬送出
+      await new Promise(r => setTimeout(r, 800));
+      document.getElementById('successMsg').style.display = 'block';
+      document.getElementById('contactForm').reset();
+      btn.disabled = false;
+      btn.textContent = '送出留言';
+    });
+  </script>
+</body>
+</html>

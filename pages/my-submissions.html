@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的投稿 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .record-card {
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 14px;
+      transition: box-shadow 0.2s;
+    }
+    .record-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
+    .record-card--needs { border-color: #fbbf24; }
+
+    .record-card__header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      cursor: pointer;
+    }
+    .record-card__thumb {
+      width: 64px; height: 48px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      background: var(--color-border);
+      flex-shrink: 0;
+    }
+    .record-card__info { flex: 1; min-width: 0; }
+    .record-card__title { font-weight: 700; font-size: 0.95rem; color: var(--color-dark); margin-bottom: 4px; }
+    .record-card__meta { font-size: 0.8rem; color: var(--color-text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+    .record-card__body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--color-border); }
+    .record-card.expanded .record-card__body { display: block; }
+    .record-card.expanded .record-card__header { border-bottom: 1px solid var(--color-border); }
+
+    .photo-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+    .photo-row img { width: 88px; height: 66px; object-fit: cover; border-radius: var(--radius-sm); cursor: zoom-in; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px; padding: 12px;
+      background: var(--color-bg); border-radius: var(--radius-sm); margin-bottom: 12px;
+    }
+    .detail-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); margin-bottom: 2px; }
+    .detail-value { font-size: 0.86rem; color: var(--color-dark); }
+
+    .reviewer-note {
+      background: #fffbeb;
+      border-left: 3px solid #f59e0b;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 10px 14px;
+      font-size: 0.87rem;
+      color: #92400e;
+      margin-top: 10px;
+    }
+    .reviewer-note__label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; color: #d97706; }
+
+    /* ===== 編輯表單 ===== */
+    .edit-panel {
+      display: none;
+      border-top: 2px solid #f59e0b;
+      padding: 20px;
+      background: #fffdf5;
+    }
+    .edit-panel.open { display: block; }
+    .edit-panel__title {
+      font-weight: 700; font-size: 0.95rem; color: var(--color-dark);
+      margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    }
+    .edit-panel__title::before {
+      content: '✏️';
+    }
+
+    .edit-section-label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--color-text-muted);
+      display: flex; align-items: center; gap: 8px;
+      margin: 16px 0 10px;
+    }
+    .edit-section-label::before, .edit-section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--color-border);
+    }
+
+    /* 照片管理 */
+    .photo-manage { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .photo-manage__item { position: relative; width: 80px; height: 60px; }
+    .photo-manage__img {
+      width: 100%; height: 100%;
+      object-fit: cover; border-radius: var(--radius-sm);
+      border: 2px solid var(--color-border);
+    }
+    .photo-manage__del {
+      position: absolute; top: -5px; right: -5px;
+      background: #e74c3c; color: #fff; border: none;
+      border-radius: 50%; width: 17px; height: 17px;
+      font-size: 0.6rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .photo-manage__uploading {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.4); border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.7rem;
+    }
+    .photo-add-btn {
+      width: 80px; height: 60px;
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.4rem; color: var(--color-text-muted);
+      transition: var(--transition); background: #fafafa;
+    }
+    .photo-add-btn:hover { border-color: var(--color-secondary); color: var(--color-secondary); }
+
+    .edit-error {
+      background: #fef2f2; border: 1px solid #fecaca;
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      font-size: 0.87rem; color: #dc2626; margin-bottom: 14px; display: none;
+    }
+
+    /* 狀態篩選 */
+    .status-filter { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+    .status-btn {
+      padding: 5px 16px; border-radius: 99px;
+      border: 1px solid var(--color-border); background: #fff;
+      cursor: pointer; font-size: 0.86rem; color: var(--color-text-muted);
+      transition: all 0.2s; font-family: var(--font-main);
+    }
+    .status-btn.active { background: var(--color-secondary); border-color: var(--color-secondary); color: #fff; }
+    .status-btn .cnt { font-size: 0.75rem; opacity: 0.8; margin-left: 3px; }
+
+    .page-actions {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">My Records</div>
+        <h1 class="page-hero__title">我的投稿</h1>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container container--narrow">
+
+        <div id="guestState" style="display:none; text-align:center; padding:60px 0;">
+          <div style="font-size:3rem; margin-bottom:16px;">🔒</div>
+          <p style="color:var(--color-text-muted); margin-bottom:20px;">請先登入才能查看投稿紀錄</p>
+          <a href="/pages/login.html?return=/pages/my-submissions.html" class="btn btn--primary">前往登入</a>
+        </div>
+
+        <div id="mainContent" style="display:none;">
+          <div class="page-actions">
+            <div style="font-size:0.9rem; color:var(--color-text-muted);">
+              共 <strong id="totalCount">0</strong> 筆投稿
+            </div>
+            <a href="/pages/submit.html" class="btn btn--primary btn--sm">＋ 新增投稿</a>
+          </div>
+
+          <div class="status-filter">
+            <button class="status-btn active" onclick="filterBy('', this)">全部 <span class="cnt" id="cnt-all">0</span></button>
+            <button class="status-btn" onclick="filterBy('pending', this)">待審核 <span class="cnt" id="cnt-pending">0</span></button>
+            <button class="status-btn" onclick="filterBy('approved', this)">已核准 <span class="cnt" id="cnt-approved">0</span></button>
+            <button class="status-btn" onclick="filterBy('needs_info', this)">需補充 <span class="cnt" id="cnt-needs">0</span></button>
+            <button class="status-btn" onclick="filterBy('rejected', this)">已拒絕 <span class="cnt" id="cnt-rejected">0</span></button>
+          </div>
+
+          <div id="recordList"><div class="spinner"></div></div>
+          <div id="emptyState" class="empty-state" style="display:none;">
+            <div class="empty-state__icon">📭</div>
+            <p class="empty-state__text">沒有符合條件的投稿</p>
+          </div>
+        </div>
+
+        <div id="loadingState" style="text-align:center; padding:80px 0;">
+          <div class="spinner" style="margin:0 auto;"></div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <div id="lightbox" onclick="this.style.display='none'"
+       style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; cursor:zoom-out; align-items:center; justify-content:center;">
+    <img id="lightboxImg" style="max-width:90vw; max-height:90vh; border-radius:var(--radius-md);">
+  </div>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/template.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    let allRecords    = [];
+    let currentFilter = '';
+    let currentUserId = null;
+    // 每筆投稿的編輯狀態：key = submission id
+    const editState = {};
+
+    const STATUS = {
+      pending:    { label: '待審核', cls: 'badge--pending' },
+      approved:   { label: '已核准', cls: 'badge--approved' },
+      rejected:   { label: '已拒絕', cls: 'badge--rejected' },
+      needs_info: { label: '需補充', cls: 'badge--warning' },
+    };
+
+    const TAXON_FIELDS = [
+      { key: 'taxon_phylum',     label: '門' },
+      { key: 'taxon_class',      label: '綱' },
+      { key: 'taxon_subclass',   label: '亞綱' },
+      { key: 'taxon_infraclass', label: '下綱' },
+      { key: 'taxon_cohort',     label: '準綱' },
+      { key: 'taxon_superorder', label: '總目' },
+      { key: 'taxon_order',      label: '目' },
+      { key: 'taxon_suborder',   label: '亞目' },
+      { key: 'taxon_family',     label: '科' },
+      { key: 'taxon_genus',      label: '屬' },
+    ];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      document.getElementById('loadingState').style.display = 'none';
+      if (!session?.user) { document.getElementById('guestState').style.display = 'block'; return; }
+      currentUserId = session.user.id;
+      document.getElementById('mainContent').style.display = 'block';
+      await loadRecords();
+    });
+
+    async function loadRecords() {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('*, species(id, name_zh, name_sci)')
+        .eq('submitter_id', currentUserId)
+        .order('created_at', { ascending: false });
+      if (error) { document.getElementById('recordList').innerHTML = '<p style="color:var(--color-text-muted);">載入失敗，請重新整理。</p>'; return; }
+      allRecords = data || [];
+      updateCounts();
+      render();
+    }
+
+    function updateCounts() {
+      document.getElementById('totalCount').textContent   = allRecords.length;
+      document.getElementById('cnt-all').textContent      = allRecords.length;
+      document.getElementById('cnt-pending').textContent  = allRecords.filter(r => r.status === 'pending').length;
+      document.getElementById('cnt-approved').textContent = allRecords.filter(r => r.status === 'approved').length;
+      document.getElementById('cnt-needs').textContent    = allRecords.filter(r => r.status === 'needs_info').length;
+      document.getElementById('cnt-rejected').textContent = allRecords.filter(r => r.status === 'rejected').length;
+    }
+
+    function filterBy(status, btn) {
+      currentFilter = status;
+      document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    }
+
+    /* ── 渲染列表 ── */
+    function render() {
+      const list    = currentFilter ? allRecords.filter(r => r.status === currentFilter) : allRecords;
+      const listEl  = document.getElementById('recordList');
+      const emptyEl = document.getElementById('emptyState');
+
+      if (!list.length) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+      emptyEl.style.display = 'none';
+
+      listEl.innerHTML = list.map(r => {
+        const st     = STATUS[r.status] || { label: r.status, cls: '' };
+        const photos = r.photos || [];
+        const thumb  = photos[0] || '';
+        const title  = r.name_zh || r.name_sci || r.species_guess || '（未填物種名稱）';
+        const linked = r.species
+          ? `<a href="/pages/species/species.html?id=${r.species.id}"
+               style="color:var(--color-secondary); font-size:0.82rem; margin-left:6px;"
+               onclick="event.stopPropagation()">→ 查看物種頁</a>` : '';
+        const needsEdit = r.status === 'needs_info';
+
+        return `
+        <div class="record-card ${needsEdit ? 'record-card--needs' : ''}" id="rc-${r.id}">
+          <div class="record-card__header" onclick="toggleCard(${r.id})">
+            <img class="record-card__thumb" src="${escHtml(thumb)}" alt=""
+                 onerror="this.style.background='var(--color-border)'">
+            <div class="record-card__info">
+              <div class="record-card__title">
+                ${escHtml(title)}
+                ${r.name_sci && r.name_zh ? `<em style="font-style:italic; color:var(--color-text-muted); font-size:0.85rem; margin-left:6px;">${escHtml(r.name_sci)}</em>` : ''}
+                ${linked}
+              </div>
+              <div class="record-card__meta">
+                <span>📅 ${r.observed_at || '—'}</span>
+                <span>📍 ${escHtml(r.location_text || '—')}</span>
+                <span>🕐 ${new Date(r.created_at).toLocaleDateString('zh-Hant')}</span>
+              </div>
+            </div>
+            <span class="badge ${st.cls}" style="flex-shrink:0;">${st.label}</span>
+            <span style="color:var(--color-text-muted); margin-left:4px; font-size:0.75rem;">▾</span>
+          </div>
+
+          <div class="record-card__body">
+            ${photos.length ? `<div class="photo-row">${photos.map(url => `<img src="${url}" alt="" onclick="openLightbox('${url}')">`).join('')}</div>` : ''}
+
+            <div class="detail-grid">
+              ${r.name_zh      ? `<div><div class="detail-label">中文名</div><div class="detail-value">${escHtml(r.name_zh)}</div></div>` : ''}
+              ${r.name_sci     ? `<div><div class="detail-label">學名</div><div class="detail-value" style="font-style:italic;">${escHtml(r.name_sci)}</div></div>` : ''}
+              ${r.taxon_order  ? `<div><div class="detail-label">目</div><div class="detail-value">${escHtml(r.taxon_order)}</div></div>` : ''}
+              ${r.taxon_family ? `<div><div class="detail-label">科</div><div class="detail-value">${escHtml(r.taxon_family)}</div></div>` : ''}
+              ${r.observed_at  ? `<div><div class="detail-label">觀察日期</div><div class="detail-value">${r.observed_at}</div></div>` : ''}
+              ${r.location_text? `<div><div class="detail-label">地點</div><div class="detail-value">${escHtml(r.location_text)}</div></div>` : ''}
+              ${r.depth_m != null ? `<div><div class="detail-label">水深</div><div class="detail-value">${r.depth_m} m</div></div>` : ''}
+              ${r.location_lat && r.location_lng ? `<div><div class="detail-label">GPS</div><div class="detail-value">${r.location_lat}, ${r.location_lng}</div></div>` : ''}
+            </div>
+
+            ${r.behavior_notes ? `<div style="margin-bottom:10px;"><div class="detail-label" style="margin-bottom:4px;">行為描述</div><p style="font-size:0.87rem; line-height:1.75; margin:0;">${escHtml(r.behavior_notes)}</p></div>` : ''}
+
+            ${r.reviewer_note ? `
+              <div class="reviewer-note">
+                <div class="reviewer-note__label">⚠ 管理員要求補充</div>
+                ${escHtml(r.reviewer_note)}
+              </div>` : ''}
+
+            ${needsEdit ? `
+              <div style="margin-top:14px;">
+                <button class="btn btn--primary btn--sm" onclick="openEditPanel(${r.id})" id="editBtn-${r.id}">
+                  ✏️ 編輯並重新投稿
+                </button>
+              </div>` : ''}
+          </div>
+
+          <!-- 編輯面板 -->
+          ${needsEdit ? buildEditForm(r) : ''}
+        </div>`;
+      }).join('');
+    }
+
+    /* ── 建立編輯表單 HTML ── */
+    function buildEditForm(r) {
+      const taxonSelects = TAXON_FIELDS.map(f => `
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:0.78rem;">${f.label}</label>
+          <select id="e_${f.key}_${r.id}" class="form-select" data-taxon="${f.key}" data-sid="${r.id}">
+            <option value="${escHtml(r[f.key] || '')}">
+              ${r[f.key] ? escHtml(r[f.key]) : '— 選擇 —'}
+            </option>
+          </select>
+        </div>`).join('');
+
+      return `
+      <div class="edit-panel" id="ep-${r.id}">
+        <div class="edit-panel__title">編輯投稿內容</div>
+        <div class="edit-error" id="eErr-${r.id}"></div>
+
+        <div class="edit-section-label">物種資訊</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">中文名</label>
+            <input type="text" id="e_name_zh_${r.id}" class="form-input" value="${escHtml(r.name_zh || '')}">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">學名</label>
+            <input type="text" id="e_name_sci_${r.id}" class="form-input" value="${escHtml(r.name_sci || '')}">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">命名者</label>
+            <input type="text" id="e_name_author_${r.id}" class="form-input" value="${escHtml(r.name_author || '')}">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">命名年份</label>
+            <input type="number" id="e_name_year_${r.id}" class="form-input" value="${r.name_year || ''}">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;">
+          ${taxonSelects}
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" style="font-size:0.8rem;">物種描述</label>
+          <textarea id="e_description_${r.id}" class="form-textarea" rows="3">${escHtml(r.description || '')}</textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" style="font-size:0.8rem;">WoRMS 連結</label>
+          <input type="url" id="e_worms_url_${r.id}" class="form-input" value="${escHtml(r.worms_url || '')}"
+                 placeholder="https://www.marinespecies.org/…">
+        </div>
+
+        <div class="edit-section-label">觀察紀錄</div>
+
+        <!-- 照片管理 -->
+        <div class="form-group">
+          <label class="form-label" style="font-size:0.8rem;">觀察照片</label>
+          <div class="photo-manage" id="ePM-${r.id}"></div>
+          <input type="file" id="ePhotoInput-${r.id}" accept="image/*" multiple style="display:none;"
+                 onchange="addEditPhotos(${r.id}, this.files)">
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">觀察日期</label>
+            <input type="date" id="e_observed_at_${r.id}" class="form-input" value="${r.observed_at || ''}">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">水深（公尺）</label>
+            <input type="number" id="e_depth_m_${r.id}" class="form-input" value="${r.depth_m ?? ''}" min="0">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" style="font-size:0.8rem;">地點描述</label>
+          <input type="text" id="e_location_text_${r.id}" class="form-input" value="${escHtml(r.location_text || '')}">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">緯度</label>
+            <input type="number" id="e_lat_${r.id}" class="form-input" value="${r.location_lat || ''}" step="0.0000001">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:0.8rem;">經度</label>
+            <input type="number" id="e_lng_${r.id}" class="form-input" value="${r.location_lng || ''}" step="0.0000001">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:18px;">
+          <label class="form-label" style="font-size:0.8rem;">行為描述</label>
+          <textarea id="e_behavior_${r.id}" class="form-textarea" rows="3">${escHtml(r.behavior_notes || '')}</textarea>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn--primary" onclick="saveEdit(${r.id})" id="eSaveBtn-${r.id}">
+            📤 儲存並重新送審
+          </button>
+          <button class="btn btn--outline" onclick="closeEditPanel(${r.id})">取消</button>
+        </div>
+      </div>`;
+    }
+
+    /* ── 開啟編輯面板 ── */
+    async function openEditPanel(id) {
+      // 初始化該筆的照片狀態
+      const r = allRecords.find(x => x.id === id);
+      if (!r) return;
+      editState[id] = { photos: (r.photos || []).map(url => ({ url, uploading: false, isNew: false })) };
+
+      // 顯示面板
+      document.getElementById(`ep-${id}`).classList.add('open');
+      document.getElementById(`editBtn-${id}`).style.display = 'none';
+
+      renderEditPhotos(id);
+      await loadEditTaxonDropdowns(id, r);
+    }
+
+    function closeEditPanel(id) {
+      document.getElementById(`ep-${id}`).classList.remove('open');
+      document.getElementById(`editBtn-${id}`).style.display = '';
+      delete editState[id];
+    }
+
+    /* ── 分類下拉（編輯用） ── */
+    async function loadEditTaxonDropdowns(id, record) {
+      const taxonSlugs = TAXON_FIELDS.map(f => f.key);
+      const { data: cats } = await supabase
+        .from('categories')
+        .select('slug, tags(name, sort_order)')
+        .in('slug', taxonSlugs);
+      if (!cats) return;
+
+      const taxonMap = {};
+      cats.forEach(c => {
+        taxonMap[c.slug] = (c.tags || []).sort((a, b) => a.sort_order - b.sort_order);
+      });
+
+      TAXON_FIELDS.forEach(f => {
+        const sel = document.getElementById(`e_${f.key}_${id}`);
+        if (!sel) return;
+        const options = taxonMap[f.key] || [];
+        sel.innerHTML = '<option value="">— 選擇 —</option>' +
+          options.map(t => `<option value="${escHtml(t.name)}">${escHtml(t.name)}</option>`).join('');
+        if (record[f.key]) sel.value = record[f.key];
+      });
+    }
+
+    /* ── 照片管理 ── */
+    function renderEditPhotos(id) {
+      const state  = editState[id];
+      if (!state) return;
+      const el = document.getElementById(`ePM-${id}`);
+      el.innerHTML = state.photos.map((p, i) => `
+        <div class="photo-manage__item">
+          ${p.uploading
+            ? `<div class="photo-manage__img" style="background:var(--color-border);"></div>
+               <div class="photo-manage__uploading">上傳中…</div>`
+            : `<img class="photo-manage__img" src="${p.url}" alt="">
+               <button type="button" class="photo-manage__del"
+                       onclick="removeEditPhoto(${id}, ${i})">✕</button>`}
+        </div>`).join('') +
+        `<div class="photo-add-btn" onclick="document.getElementById('ePhotoInput-${id}').click()">＋</div>`;
+    }
+
+    function removeEditPhoto(id, idx) {
+      editState[id].photos.splice(idx, 1);
+      renderEditPhotos(id);
+    }
+
+    async function addEditPhotos(id, fileList) {
+      const state = editState[id];
+      if (!state) return;
+      for (const file of Array.from(fileList).filter(f => f.type.startsWith('image/'))) {
+        if (file.size > 10 * 1024 * 1024) { alert('照片超過 10 MB，請壓縮後再上傳'); continue; }
+        const tempIdx = state.photos.length;
+        state.photos.push({ url: '', uploading: true, isNew: true });
+        renderEditPhotos(id);
+        try {
+          const ext  = file.name.split('.').pop().toLowerCase();
+          const path = `submissions/${currentUserId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error: upErr } = await supabase.storage
+            .from('submission-photos').upload(path, file, { cacheControl: '3600' });
+          if (upErr) throw upErr;
+          const { data: urlData } = supabase.storage.from('submission-photos').getPublicUrl(path);
+          state.photos[tempIdx] = { url: urlData.publicUrl, uploading: false, isNew: true };
+        } catch (e) {
+          state.photos.splice(tempIdx, 1);
+          alert('照片上傳失敗：' + e.message);
+        }
+        renderEditPhotos(id);
+      }
+      // 清除 input 以允許重複選同檔案
+      document.getElementById(`ePhotoInput-${id}`).value = '';
+    }
+
+    /* ── 儲存編輯 ── */
+    async function saveEdit(id) {
+      const state = editState[id];
+      if (!state) return;
+
+      const readyPhotos = state.photos.filter(p => !p.uploading && p.url);
+      if (!readyPhotos.length) { showEditErr(id, '請至少保留或上傳一張照片'); return; }
+
+      const g = (fieldId) => document.getElementById(fieldId)?.value?.trim() || null;
+
+      const errEl  = document.getElementById(`eErr-${id}`);
+      errEl.style.display = 'none';
+      const btn    = document.getElementById(`eSaveBtn-${id}`);
+      btn.disabled = true; btn.textContent = '送出中…';
+
+      const payload = {
+        photos:           readyPhotos.map(p => p.url),
+        name_zh:          g(`e_name_zh_${id}`),
+        name_sci:         g(`e_name_sci_${id}`),
+        name_author:      g(`e_name_author_${id}`),
+        name_year:        document.getElementById(`e_name_year_${id}`)?.value ? parseInt(document.getElementById(`e_name_year_${id}`).value) : null,
+        taxon_phylum:     g(`e_taxon_phylum_${id}`),
+        taxon_class:      g(`e_taxon_class_${id}`),
+        taxon_subclass:   g(`e_taxon_subclass_${id}`),
+        taxon_infraclass: g(`e_taxon_infraclass_${id}`),
+        taxon_cohort:     g(`e_taxon_cohort_${id}`),
+        taxon_superorder: g(`e_taxon_superorder_${id}`),
+        taxon_order:      g(`e_taxon_order_${id}`),
+        taxon_suborder:   g(`e_taxon_suborder_${id}`),
+        taxon_family:     g(`e_taxon_family_${id}`),
+        taxon_genus:      g(`e_taxon_genus_${id}`),
+        description:      g(`e_description_${id}`),
+        worms_url:        g(`e_worms_url_${id}`),
+        observed_at:      g(`e_observed_at_${id}`),
+        location_text:    g(`e_location_text_${id}`),
+        location_lat:     g(`e_lat_${id}`) ? parseFloat(g(`e_lat_${id}`)) : null,
+        location_lng:     g(`e_lng_${id}`) ? parseFloat(g(`e_lng_${id}`)) : null,
+        depth_m:          document.getElementById(`e_depth_m_${id}`)?.value ? parseInt(document.getElementById(`e_depth_m_${id}`).value) : null,
+        behavior_notes:   g(`e_behavior_${id}`),
+        status:           'pending',
+        reviewer_note:    null,
+        reviewed_at:      null,
+      };
+
+      const { error } = await supabase.from('submissions').update(payload).eq('id', id);
+      btn.disabled = false; btn.textContent = '📤 儲存並重新送審';
+
+      if (error) { showEditErr(id, '送出失敗：' + error.message); return; }
+
+      delete editState[id];
+      await loadRecords();
+    }
+
+    function showEditErr(id, msg) {
+      const el = document.getElementById(`eErr-${id}`);
+      el.textContent = msg; el.style.display = 'block';
+    }
+
+    /* ── 共用 ── */
+    function toggleCard(id) { document.getElementById('rc-' + id).classList.toggle('expanded'); }
+    function openLightbox(url) { document.getElementById('lightboxImg').src = url; document.getElementById('lightbox').style.display = 'flex'; }
+
+    function escHtml(str) {
+      if (!str && str !== 0) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

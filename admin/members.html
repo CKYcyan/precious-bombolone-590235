@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>會員管理 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .member-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--color-border);
+    }
+    .role-select {
+      padding: 4px 8px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      background: #fff;
+      cursor: pointer;
+    }
+    .role-select.role-admin  { border-color: #7c3aed; color: #7c3aed; }
+    .role-select.role-expert { border-color: #0369a1; color: #0369a1; }
+    .role-select.role-member { border-color: var(--color-border); color: var(--color-text-muted); }
+    .role-badge-admin  { background: #ede9fe; color: #7c3aed; }
+    .role-badge-expert { background: #e0f2fe; color: #0369a1; }
+    .role-badge-member { background: #f1f5f9; color: var(--color-text-muted); }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">會員管理</div>
+    </div>
+    <div class="admin-content">
+
+      <!-- 搜尋 + 篩選 -->
+      <div class="panel" style="margin-bottom:24px;">
+        <div class="panel__body" style="padding:16px 24px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+          <input type="text" id="searchInput" class="form-input" placeholder="搜尋帳號或顯示名稱…" style="max-width:280px;">
+          <select id="roleFilter" class="form-select" style="max-width:160px;">
+            <option value="">全部角色</option>
+            <option value="admin">管理員</option>
+            <option value="expert">審核專家</option>
+            <option value="member">一般會員</option>
+          </select>
+          <span id="countInfo" style="font-size:0.88rem; color:var(--color-text-muted); margin-left:auto;"></span>
+        </div>
+      </div>
+
+      <!-- 說明 -->
+      <div style="margin-bottom:20px; padding:12px 18px; background:#fffbeb; border:1px solid #fde68a; border-radius:var(--radius-sm); font-size:0.88rem; color:#92400e;">
+        <strong>角色說明：</strong>
+        管理員（Admin）可操作所有後台功能；
+        審核專家（Expert）可在物種頁面點選確認鑑定（✓/✗）；
+        一般會員（Member）僅能投稿。
+      </div>
+
+      <!-- 會員列表 -->
+      <div class="panel">
+        <div class="panel__header">
+          <div class="panel__title">所有會員</div>
+        </div>
+        <div id="memberList"><div class="spinner"></div></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let allMembers = [];
+  let currentUserId = '';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    currentUserId = auth.session.user.id;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('members');
+    await loadMembers();
+
+    document.getElementById('searchInput').addEventListener('input', filterAndRender);
+    document.getElementById('roleFilter').addEventListener('change', filterAndRender);
+  });
+
+  async function loadMembers() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) { showToast('載入失敗', 'error'); return; }
+    allMembers = data || [];
+    filterAndRender();
+  }
+
+  function filterAndRender() {
+    const q    = document.getElementById('searchInput').value.trim().toLowerCase();
+    const role = document.getElementById('roleFilter').value;
+
+    let filtered = allMembers;
+    if (q)    filtered = filtered.filter(m => (m.display_name||'').toLowerCase().includes(q) || (m.username||'').toLowerCase().includes(q));
+    if (role) filtered = filtered.filter(m => m.role === role);
+
+    document.getElementById('countInfo').textContent = `顯示 ${filtered.length} / ${allMembers.length} 位`;
+    renderMemberTable(filtered);
+  }
+
+  function renderMemberTable(data) {
+    const el = document.getElementById('memberList');
+    if (!data.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">👥</div><p class="empty-state__text">沒有符合條件的會員</p></div>';
+      return;
+    }
+
+    el.innerHTML = `<table class="data-table">
+      <thead>
+        <tr>
+          <th>頭像</th>
+          <th>顯示名稱</th>
+          <th>帳號（username）</th>
+          <th>目前角色</th>
+          <th>加入日期</th>
+          <th>變更角色</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map(m => {
+          const isSelf = m.id === currentUserId;
+          const roleLabelMap = { admin: '管理員', expert: '審核專家', member: '一般會員' };
+          return `
+          <tr id="row-${m.id}">
+            <td>
+              ${m.avatar_url
+                ? `<img class="member-avatar" src="${m.avatar_url}" alt="${m.display_name || ''}" onerror="this.onerror=null; this.style.display='none'">`
+                : `<div class="member-avatar"></div>`}
+            </td>
+            <td><strong>${m.display_name || '（未設定）'}</strong></td>
+            <td style="font-size:0.85rem; color:var(--color-text-muted);">${m.username || '—'}</td>
+            <td>
+              <span class="badge ${m.role === 'admin' ? 'role-badge-admin' : m.role === 'expert' ? 'role-badge-expert' : 'role-badge-member'}">
+                ${roleLabelMap[m.role] || m.role}
+              </span>
+            </td>
+            <td style="font-size:0.85rem; color:var(--color-text-muted);">
+              ${new Date(m.created_at).toLocaleDateString('zh-Hant')}
+            </td>
+            <td>
+              ${isSelf
+                ? `<span style="font-size:0.82rem; color:var(--color-text-muted);">（自己）</span>`
+                : `<select class="role-select role-${m.role}" id="roleSelect-${m.id}" onchange="changeRole('${m.id}', this)">
+                    <option value="member"  ${m.role === 'member'  ? 'selected' : ''}>一般會員</option>
+                    <option value="expert"  ${m.role === 'expert'  ? 'selected' : ''}>審核專家</option>
+                    <option value="admin"   ${m.role === 'admin'   ? 'selected' : ''}>管理員</option>
+                  </select>`
+              }
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  async function changeRole(memberId, selectEl) {
+    const newRole  = selectEl.value;
+    const member   = allMembers.find(m => m.id === memberId);
+    const oldRole  = member?.role;
+    const roleLabel = { admin: '管理員', expert: '審核專家', member: '一般會員' };
+
+    if (newRole === oldRole) return;
+
+    showConfirm(
+      '變更角色',
+      `確定要將「${member?.display_name || '此會員'}」的角色從「${roleLabel[oldRole]}」改為「${roleLabel[newRole]}」嗎？`,
+      async () => {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ role: newRole })
+          .eq('id', memberId);
+
+        if (error) {
+          showToast('變更失敗：' + error.message, 'error');
+          selectEl.value = oldRole;
+          return;
+        }
+
+        showToast(`已將 ${member?.display_name || '會員'} 設為「${roleLabel[newRole]}」`);
+
+        // 更新本地資料
+        const idx = allMembers.findIndex(m => m.id === memberId);
+        if (idx !== -1) allMembers[idx].role = newRole;
+
+        // 更新 select 樣式
+        selectEl.className = `role-select role-${newRole}`;
+
+        // 更新 badge
+        const row = document.getElementById(`row-${memberId}`);
+        if (row) {
+          const badge = row.querySelector('.badge');
+          if (badge) {
+            badge.className = `badge ${newRole === 'admin' ? 'role-badge-admin' : newRole === 'expert' ? 'role-badge-expert' : 'role-badge-member'}`;
+            badge.textContent = roleLabel[newRole];
+          }
+        }
+      },
+      '確認變更', false
+    );
+
+    // 若取消，恢復原值
+    document.getElementById('confirmCancel').addEventListener('click', () => {
+      selectEl.value = oldRole;
+    }, { once: true });
+  }
+</script>
+</body>
+</html>

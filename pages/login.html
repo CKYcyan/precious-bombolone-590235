@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登入 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .auth-wrap {
+      max-width: 440px;
+      margin: 60px auto;
+    }
+    .auth-card {
+      background: #fff;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+    }
+    .auth-card__header {
+      background: linear-gradient(135deg, var(--color-dark), var(--color-primary));
+      color: #fff;
+      padding: 32px;
+      text-align: center;
+    }
+    .auth-card__logo { font-size: 2.2rem; margin-bottom: 10px; }
+    .auth-card__title { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+    .auth-card__subtitle { font-size: 0.88rem; color: rgba(255,255,255,0.7); }
+    .auth-card__body { padding: 32px; }
+
+    .auth-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: var(--transition);
+    }
+    .auth-tab.active {
+      color: var(--color-secondary);
+      border-bottom-color: var(--color-secondary);
+    }
+    .auth-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.87rem;
+      color: #dc2626;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .auth-success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.87rem;
+      color: #16a34a;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .auth-divider {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+      margin-top: 20px;
+    }
+    .auth-divider a { color: var(--color-secondary); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <section class="section">
+      <div class="container">
+        <div class="auth-wrap">
+          <div class="auth-card">
+            <div class="auth-card__header">
+              <div class="auth-card__logo">🐌</div>
+              <div class="auth-card__title">台灣海蛞蝓紀錄</div>
+              <div class="auth-card__subtitle">登入帳號以投稿觀察紀錄</div>
+            </div>
+            <div class="auth-card__body">
+
+              <div class="auth-tabs">
+                <div class="auth-tab active" id="tabLogin" onclick="switchTab('login')">登入</div>
+                <div class="auth-tab" id="tabRegister" onclick="switchTab('register')">註冊</div>
+              </div>
+
+              <!-- 登入表單 -->
+              <div id="loginForm">
+                <div class="auth-error" id="loginError"></div>
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" id="loginEmail" class="form-input" placeholder="your@email.com"
+                         onkeydown="if(event.key==='Enter') doLogin()">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">密碼</label>
+                  <input type="password" id="loginPassword" class="form-input" placeholder="••••••••"
+                         onkeydown="if(event.key==='Enter') doLogin()">
+                </div>
+                <button onclick="doLogin()" class="btn btn--primary" style="width:100%;" id="loginBtn">
+                  登入
+                </button>
+              </div>
+
+              <!-- 註冊表單 -->
+              <div id="registerForm" class="hidden">
+                <div class="auth-error" id="registerError"></div>
+                <div class="auth-success" id="registerSuccess"></div>
+                <div class="form-group">
+                  <label class="form-label">顯示名稱 <span class="required">*</span></label>
+                  <input type="text" id="regName" class="form-input" placeholder="你的名字或暱稱">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email <span class="required">*</span></label>
+                  <input type="email" id="regEmail" class="form-input" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">密碼 <span class="required">*</span></label>
+                  <input type="password" id="regPassword" class="form-input" placeholder="至少 8 個字元">
+                </div>
+                <button onclick="doRegister()" class="btn btn--primary" style="width:100%;" id="registerBtn">
+                  建立帳號
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/template.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    // 若已登入，直接跳轉
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) redirectAfterLogin();
+    })();
+
+    function getReturnUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('return') || '/index.html';
+    }
+
+    function redirectAfterLogin() {
+      window.location.href = getReturnUrl();
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+      document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+    }
+
+    async function doLogin() {
+      const email    = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errEl    = document.getElementById('loginError');
+      const btn      = document.getElementById('loginBtn');
+      errEl.style.display = 'none';
+
+      if (!email || !password) { showErr(errEl, '請填寫 Email 和密碼'); return; }
+
+      btn.disabled = true; btn.textContent = '登入中…';
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      btn.disabled = false; btn.textContent = '登入';
+
+      if (error) { showErr(errEl, translateErr(error.message)); return; }
+      redirectAfterLogin();
+    }
+
+    async function doRegister() {
+      const name     = document.getElementById('regName').value.trim();
+      const email    = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const errEl    = document.getElementById('registerError');
+      const sucEl    = document.getElementById('registerSuccess');
+      const btn      = document.getElementById('registerBtn');
+      errEl.style.display = 'none'; sucEl.style.display = 'none';
+
+      if (!name)  { showErr(errEl, '請填寫顯示名稱'); return; }
+      if (!email) { showErr(errEl, '請填寫 Email'); return; }
+      if (password.length < 8) { showErr(errEl, '密碼至少需要 8 個字元'); return; }
+
+      btn.disabled = true; btn.textContent = '建立中…';
+      const { data, error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { display_name: name } }
+      });
+      btn.disabled = false; btn.textContent = '建立帳號';
+
+      if (error) { showErr(errEl, translateErr(error.message)); return; }
+
+      if (data.user && !data.session) {
+        sucEl.textContent = '帳號已建立！請檢查信箱並點擊驗證連結後再登入。';
+        sucEl.style.display = 'block';
+        return;
+      }
+      redirectAfterLogin();
+    }
+
+    function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+    function translateErr(msg) {
+      if (msg.includes('Invalid login credentials')) return '帳號或密碼錯誤';
+      if (msg.includes('Email not confirmed'))       return '請先驗證你的 Email';
+      if (msg.includes('User already registered'))  return '此 Email 已經註冊過了';
+      if (msg.includes('Password should be'))       return '密碼至少需要 8 個字元';
+      return msg;
+    }
+  </script>
+</body>
+</html>

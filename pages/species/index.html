@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>物種資料庫 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link rel="stylesheet" href="../../css/responsive.css">
+  <style>
+    .db-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    /* 篩選側欄 */
+    .filter-panel {
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      position: sticky;
+      top: calc(var(--nav-height) + 16px);
+      max-height: calc(100vh - var(--nav-height) - 40px);
+      overflow-y: auto;
+    }
+    .filter-panel__header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--color-border);
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--color-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 1;
+    }
+    .filter-clear { font-size: 0.78rem; color: var(--color-secondary); cursor: pointer; font-weight: 600; }
+    .filter-section { padding: 12px 18px; border-bottom: 1px solid var(--color-border); }
+    .filter-section:last-child { border-bottom: none; }
+    .filter-section__title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); margin-bottom: 8px; }
+    .filter-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .filter-tag {
+      padding: 3px 9px; border-radius: 99px; font-size: 0.78rem; cursor: pointer;
+      border: 1.5px solid var(--color-border); color: var(--color-text-muted);
+      transition: var(--transition); background: #fff;
+    }
+    .filter-tag:hover  { border-color: var(--color-secondary); color: var(--color-secondary); }
+    .filter-tag.active { border-color: var(--color-secondary); background: var(--color-secondary); color: #fff; }
+
+    /* 頂部工具列 */
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .toolbar__search { flex: 1; min-width: 200px; max-width: 360px; }
+    .toolbar__count  { font-size: 0.85rem; color: var(--color-text-muted); margin-left: auto; }
+
+    /* 檢視切換 */
+    .view-toggle {
+      display: flex;
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .view-btn {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: #fff;
+      color: var(--color-text-muted);
+      transition: var(--transition);
+      font-family: var(--font-main);
+    }
+    .view-btn.active { background: var(--color-secondary); color: #fff; }
+
+    /* ==============================
+       分類樹視圖
+       ============================== */
+    .taxon-tree { padding: 4px 0; }
+
+    .taxon-group { margin-bottom: 2px; }
+
+    .taxon-node {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 3px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .taxon-node:hover .taxon-node__name { text-decoration: underline; }
+
+    .taxon-node__toggle {
+      font-size: 0.7rem;
+      color: var(--color-text-muted);
+      width: 14px;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+    .taxon-node__toggle.collapsed { transform: rotate(-90deg); }
+
+    .taxon-node__rank {
+      font-size: 0.68rem;
+      color: var(--color-text-muted);
+      font-style: normal;
+      flex-shrink: 0;
+      min-width: 28px;
+    }
+
+    .taxon-node__name { font-weight: 700; line-height: 1.3; }
+    .taxon-node__sci  { font-style: italic; font-family: Georgia, serif; color: var(--color-text-muted); }
+    .taxon-node__count {
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .taxon-children { overflow: hidden; }
+    .taxon-children.collapsed { display: none; }
+
+    /* 物種葉節點 */
+    .species-leaves {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 10px 0 16px 22px;
+    }
+    .species-leaf {
+      text-decoration: none;
+      color: var(--color-text);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      transition: var(--transition);
+    }
+    .species-leaf:hover {
+      box-shadow: var(--shadow-sm);
+      border-color: var(--color-secondary);
+      transform: translateY(-2px);
+      color: var(--color-text);
+    }
+    .species-leaf__img {
+      width: 100%; aspect-ratio: 3/2;
+      object-fit: cover; background: var(--color-border);
+    }
+    .species-leaf__body { padding: 6px 8px; }
+    .species-leaf__zh  { font-size: 0.82rem; font-weight: 700; color: var(--color-dark); line-height: 1.3; }
+    .species-leaf__sci {
+      font-size: 0.72rem; color: var(--color-secondary);
+      font-style: italic; font-family: Georgia, serif; line-height: 1.3; margin-top: 2px;
+    }
+
+    /* ==============================
+       卡片視圖
+       ============================== */
+    .species-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .species-card {
+      background: #fff; border-radius: var(--radius-md);
+      border: 1px solid var(--color-border); overflow: hidden;
+      transition: var(--transition); text-decoration: none; color: var(--color-text); display: block;
+    }
+    .species-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); border-color: var(--color-secondary); color: var(--color-text); }
+    .species-card__img { width: 100%; aspect-ratio: 3/2; object-fit: cover; background: var(--color-border); }
+    .species-card__body { padding: 12px 14px; }
+    .species-card__zh  { font-weight: 700; font-size: 0.95rem; color: var(--color-dark); margin-bottom: 3px; }
+    .species-card__sci { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; font-family: Georgia, serif; }
+
+    /* 字母索引 */
+    .alpha-index { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+    .alpha-btn {
+      width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 700; cursor: pointer;
+      border: 1.5px solid var(--color-border); background: #fff; color: var(--color-text-muted); transition: var(--transition);
+    }
+    .alpha-btn:hover  { border-color: var(--color-secondary); color: var(--color-secondary); }
+    .alpha-btn.active { background: var(--color-secondary); border-color: var(--color-secondary); color: #fff; }
+
+    @media (max-width: 1024px) {
+      .db-layout { grid-template-columns: 1fr; }
+      .filter-panel { position: static; max-height: none; }
+      .species-leaves { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .species-grid { grid-template-columns: repeat(2, 1fr); }
+      .species-leaves { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">Species Database</div>
+        <h1 class="page-hero__title">物種資料庫</h1>
+        <p class="page-hero__subtitle" id="heroSubtitle">台灣記錄在案的海蛞蝓物種</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container">
+        <div class="db-layout">
+
+          <!-- 篩選側欄 -->
+          <aside class="filter-panel">
+            <div class="filter-panel__header">
+              篩選
+              <span class="filter-clear" onclick="clearAllFilters()">清除</span>
+            </div>
+            <div id="filterSections"><div class="spinner" style="margin:16px auto;"></div></div>
+          </aside>
+
+          <!-- 主要內容 -->
+          <div>
+            <!-- 工具列 -->
+            <div class="toolbar">
+              <input type="text" id="searchInput" class="form-input toolbar__search" placeholder="搜尋中文名或學名…">
+              <div class="view-toggle">
+                <button class="view-btn active" id="btnTree" onclick="switchView('tree')">分類瀏覽</button>
+                <button class="view-btn"         id="btnGrid" onclick="switchView('grid')">卡片瀏覽</button>
+              </div>
+              <span class="toolbar__count" id="resultInfo"></span>
+            </div>
+
+            <!-- 分類視圖 -->
+            <div id="treeView">
+              <div id="taxonTree"><div class="spinner"></div></div>
+            </div>
+
+            <!-- 卡片視圖 -->
+            <div id="gridView" style="display:none;">
+              <div class="alpha-index" id="alphaIndex"></div>
+              <div class="species-grid" id="speciesGrid"></div>
+            </div>
+
+            <div id="emptyState" class="empty-state" style="display:none;">
+              <div class="empty-state__icon">🐚</div>
+              <p class="empty-state__text">沒有符合條件的物種</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/template.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script>
+    // 分類階層定義（順序很重要）
+    const TAXON_LEVELS = [
+      { field: 'taxon_phylum',      rankZh: '門',   color: '#1a1a2e', size: 22 },
+      { field: 'taxon_class',       rankZh: '綱',   color: '#1a1a2e', size: 20 },
+      { field: 'taxon_subclass',    rankZh: '亞綱', color: '#1a1a2e', size: 18 },
+      { field: 'taxon_infraclass',  rankZh: '下綱', color: '#1a1a2e', size: 16 },
+      { field: 'taxon_cohort',      rankZh: '準綱', color: '#1a1a2e', size: 15 },
+      { field: 'taxon_superorder',  rankZh: '總目', color: '#c0392b', size: 14 },
+      { field: 'taxon_order',       rankZh: '目',   color: '#c0392b', size: 13 },
+      { field: 'taxon_suborder',    rankZh: '亞目', color: '#c0392b', size: 13 },
+      { field: 'taxon_family',      rankZh: '科',   color: '#1a6b5a', size: 12 },
+      { field: 'taxon_genus',       rankZh: '屬',   color: '#2a9d8f', size: 12 },
+    ];
+
+    let allSpecies    = [];
+    let filteredSpecies = [];
+    let activeFilters  = {};
+    let activeLetter   = null;
+    let currentView    = 'tree';
+    let tagMap         = {}; // tagId -> { name, catSlug }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await Promise.all([loadSpecies(), loadFilterSections()]);
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+    });
+
+    async function loadSpecies() {
+      const { data } = await supabase
+        .from('species')
+        .select(`id, name_zh, name_sci, cover_image,
+          taxon_phylum, taxon_class, taxon_subclass, taxon_infraclass,
+          taxon_cohort, taxon_superorder, taxon_order, taxon_suborder,
+          taxon_family, taxon_genus,
+          species_tags(tag_id, tags(id, name, categories(slug)))`)
+        .eq('published', true)
+        .order('name_sci');
+
+      allSpecies = data || [];
+
+      // 沒有封面的物種 → 從 submissions 補第一張照片
+      const nocover = allSpecies.filter(s => !s.cover_image);
+      if (nocover.length > 0) {
+        const { data: subs } = await supabase
+          .from('submissions').select('species_id, photos')
+          .in('species_id', nocover.map(s => s.id))
+          .eq('status', 'approved').not('photos', 'is', null);
+        const photoMap = {};
+        (subs || []).forEach(sub => {
+          if (!photoMap[sub.species_id] && Array.isArray(sub.photos) && sub.photos[0])
+            photoMap[sub.species_id] = sub.photos[0];
+        });
+        allSpecies = allSpecies.map(s => ({ ...s, cover_image: s.cover_image || photoMap[s.id] || null }));
+      }
+
+      document.getElementById('heroSubtitle').textContent = `目前收錄 ${allSpecies.length} 種台灣海蛞蝓`;
+      applyFilters();
+    }
+
+    async function loadFilterSections() {
+      const { data: categories } = await supabase
+        .from('categories').select('*, tags(*)').order('sort_order');
+      const el = document.getElementById('filterSections');
+      if (!categories?.length) { el.innerHTML = ''; return; }
+
+      // 建立 tagId -> { name, catSlug } 對應表
+      categories.forEach(cat => {
+        (cat.tags || []).forEach(tag => {
+          tagMap[tag.id] = { name: tag.name, catSlug: cat.slug };
+        });
+      });
+
+      el.innerHTML = categories.filter(c => c.tags?.length).map(cat => `
+        <div class="filter-section">
+          <div class="filter-section__title">${cat.name}</div>
+          <div class="filter-tags">
+            ${cat.tags.map(tag => `
+              <span class="filter-tag" data-cat="${cat.slug}" data-id="${tag.id}"
+                    onclick="toggleFilter('${cat.slug}',${tag.id},this)">${tag.name}</span>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleFilter(catSlug, tagId, el) {
+      if (activeFilters[catSlug] === tagId) {
+        delete activeFilters[catSlug]; el.classList.remove('active');
+      } else {
+        document.querySelector(`.filter-tag[data-cat="${catSlug}"].active`)?.classList.remove('active');
+        activeFilters[catSlug] = tagId; el.classList.add('active');
+      }
+      applyFilters();
+    }
+
+    function clearAllFilters() {
+      activeFilters = {}; activeLetter = null;
+      document.querySelectorAll('.filter-tag.active, .alpha-btn.active').forEach(el => el.classList.remove('active'));
+      document.getElementById('searchInput').value = '';
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      let list = allSpecies;
+      if (q) list = list.filter(s => s.name_zh.toLowerCase().includes(q) || s.name_sci.toLowerCase().includes(q));
+      if (activeLetter) list = list.filter(s => s.name_sci[0]?.toUpperCase() === activeLetter);
+      Object.entries(activeFilters).forEach(([catSlug, tagId]) => {
+        if (catSlug.startsWith('taxon_')) {
+          // 分類學標籤：比對 species 表的文字欄位
+          const tagName = tagMap[tagId]?.name;
+          if (tagName) list = list.filter(s => s[catSlug] === tagName);
+        } else {
+          // 一般標籤：查 species_tags
+          list = list.filter(s => s.species_tags?.some(st => st.tag_id === tagId && st.tags?.categories?.slug === catSlug));
+        }
+      });
+
+      filteredSpecies = list;
+      const total = allSpecies.length;
+      document.getElementById('resultInfo').textContent =
+        list.length < total ? `顯示 ${list.length} / ${total} 種` : `共 ${total} 種`;
+      document.getElementById('emptyState').style.display = list.length ? 'none' : 'block';
+
+      if (currentView === 'tree') renderTree(list);
+      else renderGrid(list);
+    }
+
+    /* ==============================
+       檢視切換
+       ============================== */
+    function switchView(view) {
+      currentView = view;
+      document.getElementById('btnTree').classList.toggle('active', view === 'tree');
+      document.getElementById('btnGrid').classList.toggle('active', view === 'grid');
+      document.getElementById('treeView').style.display = view === 'tree' ? 'block' : 'none';
+      document.getElementById('gridView').style.display = view === 'grid'  ? 'block' : 'none';
+      if (view === 'grid') buildAlphaIndex();
+      applyFilters();
+    }
+
+    /* ==============================
+       分類樹渲染
+       ============================== */
+    function buildTaxonTree(species, levelIndex = 0) {
+      // 找下一個有值的層級
+      while (levelIndex < TAXON_LEVELS.length) {
+        const field = TAXON_LEVELS[levelIndex].field;
+        if (species.some(s => s[field])) break;
+        levelIndex++;
+      }
+
+      if (levelIndex >= TAXON_LEVELS.length) {
+        // 全部都沒有更多分類了，直接當葉節點
+        return [{ type: 'leaves', species }];
+      }
+
+      const { field } = TAXON_LEVELS[levelIndex];
+      const grouped = {};
+      const ungrouped = [];
+
+      for (const s of species) {
+        if (s[field]) {
+          if (!grouped[s[field]]) grouped[s[field]] = [];
+          grouped[s[field]].push(s);
+        } else {
+          ungrouped.push(s);
+        }
+      }
+
+      const nodes = [];
+      for (const [name, items] of Object.entries(grouped)) {
+        nodes.push({ type: 'group', levelIndex, name, species: items, children: buildTaxonTree(items, levelIndex + 1) });
+      }
+      if (ungrouped.length) nodes.push(...buildTaxonTree(ungrouped, levelIndex + 1));
+      return nodes;
+    }
+
+    function countLeaves(nodes) {
+      let count = 0;
+      for (const n of nodes) {
+        if (n.type === 'leaves') count += n.species.length;
+        else if (n.children) count += countLeaves(n.children);
+      }
+      return count;
+    }
+
+    let _nodeId = 0;
+    function renderTreeNodes(nodes, depth = 0) {
+      return nodes.map(node => {
+        if (node.type === 'leaves') {
+          return renderLeaves(node.species, depth);
+        }
+        const lv     = TAXON_LEVELS[node.levelIndex];
+        const count  = countLeaves(node.children);
+        const id     = `tn_${_nodeId++}`;
+        const indent = depth * 20;
+
+        return `
+        <div class="taxon-group" style="padding-left:${indent}px;">
+          <div class="taxon-node" onclick="toggleNode('${id}')">
+            <span class="taxon-node__toggle" id="toggle_${id}">▼</span>
+            <span class="taxon-node__rank" style="color:${lv.color}; opacity:0.6;">${lv.rankZh}</span>
+            <span class="taxon-node__name" style="font-size:${lv.size}px; color:${lv.color};">
+              ${node.name}
+              <span class="taxon-node__count">(${count} 種)</span>
+            </span>
+          </div>
+          <div class="taxon-children" id="${id}">
+            ${renderTreeNodes(node.children, depth + 1)}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderLeaves(species, depth) {
+      if (!species.length) return '';
+      const indent = (depth) * 20;
+      return `
+        <div class="species-leaves" style="padding-left:${indent}px;">
+          ${species.map(s => `
+            <a href="species.html?id=${s.id}" class="species-leaf">
+              ${s.cover_image
+                ? `<img class="species-leaf__img" src="${s.cover_image}" alt="${s.name_zh}"
+                        onerror="this.onerror=null; this.style.visibility='hidden'">`
+                : `<div class="species-leaf__img"></div>`}
+              <div class="species-leaf__body">
+                <div class="species-leaf__zh">${s.name_zh}</div>
+                <div class="species-leaf__sci">${s.name_sci}</div>
+              </div>
+            </a>`).join('')}
+        </div>`;
+    }
+
+    function toggleNode(id) {
+      const el     = document.getElementById(id);
+      const toggle = document.getElementById(`toggle_${id}`);
+      const collapsed = el.classList.toggle('collapsed');
+      toggle.classList.toggle('collapsed', collapsed);
+    }
+
+    function renderTree(species) {
+      _nodeId = 0;
+      const el = document.getElementById('taxonTree');
+      if (!species.length) { el.innerHTML = ''; return; }
+      const nodes = buildTaxonTree(species);
+      el.innerHTML = `<div class="taxon-tree">${renderTreeNodes(nodes)}</div>`;
+    }
+
+    /* ==============================
+       卡片視圖
+       ============================== */
+    function buildAlphaIndex() {
+      const letters = [...new Set(filteredSpecies.map(s => s.name_sci[0]?.toUpperCase()).filter(Boolean))].sort();
+      document.getElementById('alphaIndex').innerHTML = letters.map(l => `
+        <button class="alpha-btn ${activeLetter === l ? 'active' : ''}" onclick="filterByLetter('${l}',this)">${l}</button>`).join('');
+    }
+
+    function filterByLetter(letter, btn) {
+      activeLetter = activeLetter === letter ? null : letter;
+      document.querySelectorAll('.alpha-btn').forEach(b => b.classList.remove('active'));
+      if (activeLetter) btn.classList.add('active');
+      applyFilters();
+    }
+
+    function renderGrid(species) {
+      buildAlphaIndex();
+      const grid = document.getElementById('speciesGrid');
+      if (!species.length) { grid.innerHTML = ''; return; }
+      grid.innerHTML = species.map(s => `
+        <a href="species.html?id=${s.id}" class="species-card">
+          ${s.cover_image
+            ? `<img class="species-card__img" src="${s.cover_image}" alt="${s.name_zh}"
+                    onerror="this.onerror=null; this.style.visibility='hidden'">`
+            : `<div class="species-card__img"></div>`}
+          <div class="species-card__body">
+            <div class="species-card__zh">${s.name_zh}</div>
+            <div class="species-card__sci">${s.name_sci}</div>
+          </div>
+        </a>`).join('');
+    }
+  </script>
+</body>
+</html>

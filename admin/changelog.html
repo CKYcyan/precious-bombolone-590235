@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>更新誌 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .changelog-list { display: flex; flex-direction: column; gap: 16px; }
+    .changelog-item {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: #fff;
+      overflow: hidden;
+    }
+    .changelog-item__header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      cursor: pointer;
+    }
+    .changelog-item__version {
+      display: inline-block;
+      background: var(--color-secondary);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+    .changelog-item__title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      flex: 1;
+    }
+    .changelog-item__date {
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+    .changelog-item__body {
+      display: none;
+      padding: 0 20px 20px;
+      border-top: 1px solid var(--color-border);
+    }
+    .changelog-item.expanded .changelog-item__body { display: block; }
+    .edit-form {
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .edit-form__row { display: grid; grid-template-columns: 1fr 160px 160px; gap: 12px; }
+    .edit-form__actions { display: flex; gap: 8px; }
+    /* 新增面板 */
+    .add-panel {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 24px;
+      background: #fafafa;
+    }
+    .add-panel__title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--color-dark);
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">更新誌管理</div>
+    </div>
+    <div class="admin-content">
+
+      <!-- 新增更新誌 -->
+      <div class="add-panel">
+        <div class="add-panel__title">＋ 新增更新紀錄</div>
+        <div class="edit-form__row" style="margin-bottom:12px;">
+          <input type="text" id="newTitle"   class="form-input" placeholder="標題，例：新增 10 種物種資料">
+          <input type="text" id="newVersion" class="form-input" placeholder="版本號，例：v1.2">
+          <input type="date"  id="newDate"   class="form-input">
+        </div>
+        <textarea id="newContent" class="form-textarea" rows="3" placeholder="更新內容說明（可留空）" style="margin-bottom:12px;"></textarea>
+        <button onclick="addChangelog()" class="btn btn--primary btn--sm">新增</button>
+      </div>
+
+      <!-- 更新誌列表 -->
+      <div class="panel">
+        <div class="panel__header">
+          <div class="panel__title">所有更新紀錄 <span id="totalCount" style="color:var(--color-text-muted); font-weight:400; font-size:0.9rem;"></span></div>
+        </div>
+        <div style="padding:20px;">
+          <div class="changelog-list" id="changelogList">
+            <div class="spinner"></div>
+          </div>
+          <div id="emptyState" class="empty-state" style="display:none;">
+            <div class="empty-state__icon">📝</div>
+            <p class="empty-state__text">尚無更新紀錄</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let changelogs = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('changelog');
+
+    // 預設日期為今天
+    document.getElementById('newDate').value = new Date().toISOString().split('T')[0];
+
+    await loadChangelogs();
+  });
+
+  async function loadChangelogs() {
+    const { data, error } = await supabase
+      .from('changelog')
+      .select('*')
+      .order('logged_at', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) { showToast('載入失敗', 'error'); return; }
+    changelogs = data || [];
+    document.getElementById('totalCount').textContent = `（共 ${changelogs.length} 筆）`;
+    renderList();
+  }
+
+  function renderList() {
+    const list  = document.getElementById('changelogList');
+    const empty = document.getElementById('emptyState');
+    if (!changelogs.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = changelogs.map(item => `
+      <div class="changelog-item" id="cl-${item.id}">
+        <div class="changelog-item__header" onclick="toggleItem(${item.id})">
+          ${item.version ? `<span class="changelog-item__version">${escHtml(item.version)}</span>` : ''}
+          <span class="changelog-item__title">${escHtml(item.title)}</span>
+          <span class="changelog-item__date">${item.logged_at || ''}</span>
+          <span style="color:var(--color-text-muted); font-size:1.1rem; margin-left:8px;">▾</span>
+        </div>
+        <div class="changelog-item__body">
+          ${item.content ? `<p style="font-size:0.9rem; line-height:1.8; color:var(--color-text); margin:16px 0;">${escHtml(item.content).replace(/\n/g,'<br>')}</p>` : ''}
+          <div class="edit-form">
+            <div class="edit-form__row">
+              <input type="text" id="editTitle-${item.id}"   class="form-input" value="${escAttr(item.title)}"   placeholder="標題">
+              <input type="text" id="editVersion-${item.id}" class="form-input" value="${escAttr(item.version||'')}" placeholder="版本號">
+              <input type="date"  id="editDate-${item.id}"   class="form-input" value="${item.logged_at || ''}">
+            </div>
+            <textarea id="editContent-${item.id}" class="form-textarea" rows="3">${escHtml(item.content||'')}</textarea>
+            <div class="edit-form__actions">
+              <button onclick="saveChangelog(${item.id})" class="btn btn--primary btn--sm">儲存</button>
+              <button onclick="deleteChangelog(${item.id}, '${escAttr(item.title)}')" class="btn btn--sm" style="border:1px solid #fecaca; color:#b91c1c; margin-left:auto;">刪除</button>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function toggleItem(id) {
+    document.getElementById('cl-' + id).classList.toggle('expanded');
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escAttr(str) {
+    return (str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  async function addChangelog() {
+    const title   = document.getElementById('newTitle').value.trim();
+    const version = document.getElementById('newVersion').value.trim();
+    const date    = document.getElementById('newDate').value;
+    const content = document.getElementById('newContent').value.trim();
+
+    if (!title) { showToast('請輸入標題', 'error'); return; }
+
+    const { error } = await supabase.from('changelog').insert({
+      title,
+      version:   version || null,
+      content:   content || null,
+      logged_at: date || new Date().toISOString().split('T')[0]
+    });
+
+    if (error) { showToast('新增失敗：' + error.message, 'error'); return; }
+
+    showToast('已新增更新紀錄');
+    document.getElementById('newTitle').value   = '';
+    document.getElementById('newVersion').value = '';
+    document.getElementById('newContent').value = '';
+    document.getElementById('newDate').value = new Date().toISOString().split('T')[0];
+    await loadChangelogs();
+  }
+
+  async function saveChangelog(id) {
+    const title   = document.getElementById(`editTitle-${id}`).value.trim();
+    const version = document.getElementById(`editVersion-${id}`).value.trim();
+    const date    = document.getElementById(`editDate-${id}`).value;
+    const content = document.getElementById(`editContent-${id}`).value.trim();
+
+    if (!title) { showToast('標題不能為空', 'error'); return; }
+
+    const { error } = await supabase.from('changelog').update({
+      title,
+      version:   version || null,
+      content:   content || null,
+      logged_at: date || null
+    }).eq('id', id);
+
+    if (error) { showToast('儲存失敗：' + error.message, 'error'); return; }
+
+    showToast('已儲存');
+    await loadChangelogs();
+  }
+
+  async function deleteChangelog(id, title) {
+    showConfirm('刪除更新紀錄', `確定要刪除「${title}」嗎？`, async () => {
+      const { error } = await supabase.from('changelog').delete().eq('id', id);
+      if (error) { showToast('刪除失敗', 'error'); return; }
+      showToast('已刪除');
+      changelogs = changelogs.filter(c => c.id !== id);
+      document.getElementById('totalCount').textContent = `（共 ${changelogs.length} 筆）`;
+      renderList();
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>編輯文章 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    /* 富文字編輯器 */
+    .rich-editor {
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .rich-editor__toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--color-border);
+      background: #f8f9fa;
+    }
+
+    .rich-editor__toolbar button {
+      padding: 5px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-family: var(--font-main);
+      transition: var(--transition);
+    }
+
+    .rich-editor__toolbar button:hover {
+      background: var(--color-secondary);
+      color: #fff;
+      border-color: var(--color-secondary);
+    }
+
+    .rich-editor__toolbar .separator {
+      width: 1px;
+      background: var(--color-border);
+      margin: 2px 4px;
+    }
+
+    .rich-editor__body {
+      min-height: 400px;
+      padding: 20px;
+      outline: none;
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: var(--color-text);
+    }
+
+    .rich-editor__body h2 { font-size: 1.4rem; font-weight: 700; margin: 20px 0 8px; }
+    .rich-editor__body h3 { font-size: 1.1rem; font-weight: 700; margin: 16px 0 6px; }
+    .rich-editor__body p  { margin-bottom: 12px; }
+    .rich-editor__body ul, .rich-editor__body ol { padding-left: 24px; margin-bottom: 12px; }
+    .rich-editor__body img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+    .rich-editor__body em { font-style: italic; font-family: Georgia, serif; }
+    .rich-editor__body blockquote {
+      border-left: 4px solid var(--color-secondary);
+      padding: 8px 16px;
+      margin: 16px 0;
+      color: var(--color-text-muted);
+      background: #f0f8f7;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title" id="pageTitle">新增文章</div>
+      <div class="admin-topbar__actions">
+        <a href="articles.html" class="btn btn--outline btn--sm">← 返回列表</a>
+      </div>
+    </div>
+    <div class="admin-content">
+      <form id="articleForm">
+        <div style="display:grid; grid-template-columns:1fr 300px; gap:24px; align-items:start;">
+
+          <!-- 左欄：文章內容 -->
+          <div style="display:flex; flex-direction:column; gap:24px;">
+
+            <!-- 標題與摘要 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">文章資訊</div></div>
+              <div class="form-panel__body">
+                <div class="form-group">
+                  <label class="form-label">標題 <span class="required">*</span></label>
+                  <input type="text" id="title" class="form-input" required placeholder="文章標題">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">摘要</label>
+                  <textarea id="excerpt" class="form-textarea" rows="2" placeholder="簡短描述，顯示在文章列表卡片上"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- 富文字編輯器 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">文章內容</div></div>
+              <div class="form-panel__body" style="padding:0;">
+                <div class="rich-editor">
+                  <div class="rich-editor__toolbar">
+                    <button type="button" onclick="fmt('bold')"><b>B</b></button>
+                    <button type="button" onclick="fmt('italic')"><i>I</i></button>
+                    <button type="button" onclick="fmt('underline')"><u>U</u></button>
+                    <button type="button" onclick="fmt('strikeThrough')"><s>S</s></button>
+                    <div class="separator"></div>
+                    <button type="button" onclick="fmtBlock('h2')">H2</button>
+                    <button type="button" onclick="fmtBlock('h3')">H3</button>
+                    <button type="button" onclick="fmtBlock('p')">內文</button>
+                    <div class="separator"></div>
+                    <button type="button" onclick="fmt('insertUnorderedList')">• 清單</button>
+                    <button type="button" onclick="fmt('insertOrderedList')">1. 清單</button>
+                    <button type="button" onclick="fmtBlock('blockquote')">引言</button>
+                    <div class="separator"></div>
+                    <button type="button" onclick="insertSciName()"><i>學名</i></button>
+                    <button type="button" onclick="insertImage()">插入圖片</button>
+                    <div class="separator"></div>
+                    <button type="button" onclick="fmt('undo')">↩ 復原</button>
+                    <button type="button" onclick="fmt('redo')">↪ 重做</button>
+                  </div>
+                  <div class="rich-editor__body" id="editor" contenteditable="true"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 右欄 -->
+          <div style="display:flex; flex-direction:column; gap:24px;">
+
+            <!-- 封面照片 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">封面照片</div></div>
+              <div class="form-panel__body">
+                <div class="upload-zone" onclick="document.getElementById('coverInput').click()">
+                  <div class="upload-zone__icon">📷</div>
+                  <div class="upload-zone__text"><strong>點擊上傳</strong>封面照片</div>
+                </div>
+                <input type="file" id="coverInput" accept="image/*" style="display:none;">
+                <div id="coverPreview" style="margin-top:10px;"></div>
+              </div>
+            </div>
+
+            <!-- 標籤 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">標籤</div></div>
+              <div class="form-panel__body" id="tagsPanel">
+                <div class="spinner"></div>
+              </div>
+            </div>
+
+            <!-- 發布設定 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">發布設定</div></div>
+              <div class="form-panel__body">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:16px;">
+                  <input type="checkbox" id="published" style="width:16px; height:16px;">
+                  <span>立即發布</span>
+                </label>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">發布日期</label>
+                  <input type="date" id="published_at" class="form-input">
+                </div>
+              </div>
+              <div class="form-panel__footer">
+                <button type="submit" class="btn btn--primary" id="saveBtn">儲存文章</button>
+                <button type="button" onclick="window.location.href='articles.html'" class="btn btn--outline">取消</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- 插入圖片對話框 -->
+<div class="confirm-overlay" id="imgDialog">
+  <div class="confirm-box">
+    <div class="confirm-box__title">插入圖片</div>
+    <div style="margin:16px 0;">
+      <div class="form-group">
+        <label class="form-label">從電腦上傳</label>
+        <input type="file" id="inlineImgInput" accept="image/*" class="form-input">
+      </div>
+      <div style="text-align:center; color:var(--color-text-muted); font-size:0.85rem; margin:8px 0;">— 或 —</div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">圖片網址</label>
+        <input type="text" id="inlineImgUrl" class="form-input" placeholder="https://...">
+      </div>
+    </div>
+    <div class="confirm-box__actions">
+      <button class="btn btn--outline btn--sm" onclick="closeImgDialog()">取消</button>
+      <button class="btn btn--primary btn--sm" onclick="confirmInsertImage()">插入</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let articleId  = null;
+  let coverUrl   = '';
+  let selectedTags = new Set();
+  let savedRange = null;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('articles');
+
+    // 設定今天為預設發布日期
+    document.getElementById('published_at').value = new Date().toISOString().split('T')[0];
+
+    const params = new URLSearchParams(window.location.search);
+    articleId = params.get('id');
+    if (articleId) {
+      document.getElementById('pageTitle').textContent = '編輯文章';
+      await loadArticle();
+    }
+
+    await loadTagsPanel();
+    initCoverUpload();
+  });
+
+  async function loadArticle() {
+    const { data } = await supabase
+      .from('articles').select('*, article_tags(tag_id)').eq('id', articleId).single();
+    if (!data) return;
+
+    document.getElementById('title').value      = data.title || '';
+    document.getElementById('excerpt').value    = data.excerpt || '';
+    document.getElementById('published').checked = data.published;
+    document.getElementById('editor').innerHTML = data.content || '';
+    if (data.published_at)
+      document.getElementById('published_at').value = data.published_at.split('T')[0];
+    if (data.cover_image) {
+      coverUrl = data.cover_image;
+      document.getElementById('coverPreview').innerHTML =
+        `<img src="${coverUrl}" style="width:100%; border-radius:var(--radius-sm);">`;
+    }
+    data.article_tags?.forEach(at => selectedTags.add(at.tag_id));
+  }
+
+  async function loadTagsPanel() {
+    const { data: categories } = await supabase
+      .from('categories').select('*, tags(*)').order('sort_order');
+    const panel = document.getElementById('tagsPanel');
+    if (!categories?.length) { panel.innerHTML = '<p style="color:var(--color-text-muted);font-size:0.9rem;">尚無標籤</p>'; return; }
+
+    panel.innerHTML = categories.map(cat => `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--color-text-muted);margin-bottom:6px;text-transform:uppercase;">${cat.name}</div>
+        <div class="tag-picker">
+          ${cat.tags.map(tag => `
+            <span class="tag ${selectedTags.has(tag.id)?'selected':''}" data-id="${tag.id}"
+                  onclick="toggleTag(${tag.id},this)">${tag.name}</span>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  function toggleTag(id, el) {
+    selectedTags.has(id) ? (selectedTags.delete(id), el.classList.remove('selected'))
+                         : (selectedTags.add(id),    el.classList.add('selected'));
+  }
+
+  function initCoverUpload() {
+    document.getElementById('coverInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        document.getElementById('coverPreview').innerHTML = '<div class="spinner" style="margin:10px auto;"></div>';
+        coverUrl = await uploadImage(file, 'species-photos');
+        document.getElementById('coverPreview').innerHTML =
+          `<img src="${coverUrl}" style="width:100%; border-radius:var(--radius-sm);">`;
+        showToast('封面上傳成功');
+      } catch { showToast('上傳失敗', 'error'); document.getElementById('coverPreview').innerHTML = ''; }
+    });
+  }
+
+  // 富文字格式化
+  function fmt(cmd) { document.getElementById('editor').focus(); document.execCommand(cmd, false, null); }
+  function fmtBlock(tag) { document.getElementById('editor').focus(); document.execCommand('formatBlock', false, tag); }
+
+  // 插入學名（斜體）
+  function insertSciName() {
+    const name = prompt('輸入學名：');
+    if (!name) return;
+    document.getElementById('editor').focus();
+    document.execCommand('insertHTML', false, `<em>${name}</em>`);
+  }
+
+  // 插入圖片
+  function insertImage() {
+    savedRange = window.getSelection()?.getRangeAt(0);
+    document.getElementById('imgDialog').classList.add('show');
+  }
+
+  function closeImgDialog() {
+    document.getElementById('imgDialog').classList.remove('show');
+    document.getElementById('inlineImgInput').value = '';
+    document.getElementById('inlineImgUrl').value   = '';
+  }
+
+  async function confirmInsertImage() {
+    const file = document.getElementById('inlineImgInput').files[0];
+    const url  = document.getElementById('inlineImgUrl').value.trim();
+    let imgUrl = url;
+
+    if (file) {
+      try { imgUrl = await uploadImage(file, 'species-photos'); }
+      catch { showToast('圖片上傳失敗', 'error'); return; }
+    }
+    if (!imgUrl) { showToast('請選擇圖片或輸入網址', 'error'); return; }
+
+    closeImgDialog();
+    const editor = document.getElementById('editor');
+    editor.focus();
+    if (savedRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    document.execCommand('insertHTML', false, `<img src="${imgUrl}" alt="" style="max-width:100%;">`);
+  }
+
+  // 儲存文章
+  document.getElementById('articleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = '儲存中…';
+
+    const isPublished = document.getElementById('published').checked;
+    const payload = {
+      title:        document.getElementById('title').value.trim(),
+      excerpt:      document.getElementById('excerpt').value.trim() || null,
+      content:      document.getElementById('editor').innerHTML,
+      cover_image:  coverUrl || null,
+      published:    isPublished,
+      published_at: isPublished ? (document.getElementById('published_at').value || new Date().toISOString()) : null,
+      updated_at:   new Date().toISOString(),
+    };
+
+    try {
+      let id = articleId;
+      if (articleId) {
+        const { error } = await supabase.from('articles').update(payload).eq('id', articleId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('articles').insert(payload).select('id').single();
+        if (error) throw error;
+        id = data.id;
+      }
+
+      // 更新標籤
+      const { error: delTagErr } = await supabase.from('article_tags').delete().eq('article_id', id);
+      if (delTagErr) throw new Error('標籤刪除失敗：' + delTagErr.message);
+      if (selectedTags.size > 0) {
+        const { error: insTagErr } = await supabase.from('article_tags').insert(
+          [...selectedTags].map(tag_id => ({ article_id: id, tag_id }))
+        );
+        if (insTagErr) throw new Error('標籤儲存失敗：' + insTagErr.message);
+      }
+
+      showToast(articleId ? '文章已更新' : '文章已新增');
+      setTimeout(() => window.location.href = 'articles.html', 1000);
+    } catch (err) {
+      showToast('儲存失敗：' + err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = '儲存文章';
+    }
+  });
+</script>
+</body>
+</html>

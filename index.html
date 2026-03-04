@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台灣海蛞蝓紀錄</title>
+  <meta name="description" content="記錄台灣海蛞蝓的生物多樣性與生態故事，由潛水教練與海洋生態愛好者共同建立。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <style>
+    /* 首頁專用樣式 */
+
+    /* 英雄區 */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(160deg, var(--color-dark) 0%, #0d3d30 60%, #1a6b5a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: calc(var(--nav-height) + 40px) 24px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 60% 50%, rgba(42,157,143,0.15) 0%, transparent 70%);
+    }
+
+    .hero__content {
+      position: relative;
+      max-width: 720px;
+    }
+
+    .hero__label {
+      display: inline-block;
+      font-size: 0.78rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--color-accent);
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .hero__title {
+      font-size: clamp(2.2rem, 6vw, 3.8rem);
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .hero__subtitle {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: rgba(255,255,255,0.75);
+      line-height: 1.8;
+      margin-bottom: 36px;
+    }
+
+    .hero__actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* 統計數字列 */
+    .stats {
+      background: var(--color-primary);
+      padding: 32px 0;
+    }
+
+    .stats__inner {
+      display: flex;
+      justify-content: center;
+      gap: 64px;
+      flex-wrap: wrap;
+    }
+
+    .stats__item {
+      text-align: center;
+    }
+
+    .stats__number {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--color-accent);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stats__label {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.75);
+      letter-spacing: 0.05em;
+    }
+
+    /* 入口卡片區 */
+    .entry-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .entry-card {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      padding: 36px 32px;
+      border: 1px solid var(--color-border);
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--color-text);
+    }
+
+    .entry-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-4px);
+      border-color: var(--color-secondary);
+      color: var(--color-text);
+    }
+
+    .entry-card__icon {
+      font-size: 2.4rem;
+      line-height: 1;
+    }
+
+    .entry-card__title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+
+    .entry-card__desc {
+      font-size: 0.92rem;
+      color: var(--color-text-muted);
+      line-height: 1.7;
+    }
+
+    .entry-card__arrow {
+      margin-top: auto;
+      font-size: 0.9rem;
+      color: var(--color-secondary);
+      font-weight: 600;
+    }
+
+    /* 最新物種 / 最新照片 */
+    .latest-species-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .latest-photo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .latest-photo-item {
+      aspect-ratio: 1;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--color-border);
+    }
+
+    .latest-photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: var(--transition);
+    }
+
+    .latest-photo-item:hover img {
+      transform: scale(1.05);
+    }
+
+    /* 加入社群號召 */
+    .cta {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: #fff;
+      text-align: center;
+      padding: 80px 0;
+    }
+
+    .cta__title {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .cta__subtitle {
+      color: rgba(255,255,255,0.82);
+      font-size: 1.05rem;
+      margin-bottom: 32px;
+    }
+
+    .cta__actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn--white {
+      background: #fff;
+      color: var(--color-primary);
+    }
+
+    .btn--white:hover {
+      background: var(--color-accent);
+      color: var(--color-dark);
+    }
+
+    .btn--ghost {
+      background: transparent;
+      border-color: rgba(255,255,255,0.5);
+      color: #fff;
+    }
+
+    .btn--ghost:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: #fff;
+      color: #fff;
+    }
+
+    /* 知識庫文章 */
+    .knowledge-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .latest-species-grid,
+      .latest-photo-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .entry-cards { grid-template-columns: 1fr; }
+      .latest-species-grid,
+      .latest-photo-grid { grid-template-columns: repeat(2, 1fr); }
+      .knowledge-list { grid-template-columns: 1fr; }
+      .stats__inner { gap: 32px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 導航列（由 template.js 注入）-->
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content" style="padding-top: 0;">
+
+    <!-- 英雄區 -->
+    <section class="hero">
+      <div class="hero__content">
+        <div class="hero__label">Taiwan Sea Slug Records</div>
+        <h1 class="hero__title">記錄台灣<br>海蛞蝓之美</h1>
+        <p class="hero__subtitle">
+          這裡是一個記錄台灣海蛞蝓生物多樣性與有趣故事的地方，<br>
+          由潛水教練與海洋生態愛好者共同建立，持續更新中。
+        </p>
+        <div class="hero__actions">
+          <a href="/pages/species/index.html" class="btn btn--primary">探索物種資料庫</a>
+          <a href="/pages/submit.html" class="btn btn--ghost">投稿觀察紀錄</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 統計數字 -->
+    <section class="stats">
+      <div class="container">
+        <div class="stats__inner">
+          <div class="stats__item">
+            <div class="stats__number" id="statsSpecies">—</div>
+            <div class="stats__label">已記錄物種</div>
+          </div>
+          <div class="stats__item">
+            <div class="stats__number" id="statsPhotos">—</div>
+            <div class="stats__label">觀察照片</div>
+          </div>
+          <div class="stats__item">
+            <div class="stats__number" id="statsContributors">—</div>
+            <div class="stats__label">貢獻者</div>
+          </div>
+          <div class="stats__item">
+            <div class="stats__number" id="statsRegions">11</div>
+            <div class="stats__label">記錄地區</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 入口卡片 -->
+    <section class="section">
+      <div class="container">
+        <div class="section__header">
+          <div class="section__label">Explore</div>
+          <h2 class="section__title">開始探索</h2>
+        </div>
+        <div class="entry-cards">
+          <a href="/pages/knowledge/index.html" class="entry-card">
+            <div class="entry-card__icon">📖</div>
+            <div class="entry-card__title">知識庫</div>
+            <p class="entry-card__desc">深入認識海蛞蝓的生態習性、分類演進與有趣故事，由站長撰寫的深度文章。</p>
+            <div class="entry-card__arrow">閱讀文章 →</div>
+          </a>
+          <a href="/pages/species/index.html" class="entry-card">
+            <div class="entry-card__icon">🐚</div>
+            <div class="entry-card__title">物種資料庫</div>
+            <p class="entry-card__desc">台灣各地記錄在案的海蛞蝓物種，含完整分類、照片、棲地與分布資訊。</p>
+            <div class="entry-card__arrow">瀏覽物種 →</div>
+          </a>
+          <a href="/pages/gallery/index.html" class="entry-card">
+            <div class="entry-card__icon">🖼</div>
+            <div class="entry-card__title">藝廊</div>
+            <p class="entry-card__desc">精選海蛞蝓攝影作品展示，捕捉這些海洋生物最動人的瞬間。</p>
+            <div class="entry-card__arrow">欣賞作品 →</div>
+          </a>
+          <a href="/pages/regions.html" class="entry-card">
+            <div class="entry-card__icon">🗺</div>
+            <div class="entry-card__title">探索地區</div>
+            <p class="entry-card__desc">依地區瀏覽觀察紀錄，探索墾丁、小琉球、澎湖、蘭嶼等地的海蛞蝓分布。</p>
+            <div class="entry-card__arrow">查看地圖 →</div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 最新新增物種 -->
+    <section class="section section--gray">
+      <div class="container">
+        <div class="section__header">
+          <div class="section__label">New Species</div>
+          <h2 class="section__title">最新新增物種</h2>
+          <p class="section__subtitle">近期加入資料庫的海蛞蝓</p>
+        </div>
+        <div class="latest-species-grid" id="latestSpecies">
+          <!-- 由 JS 動態載入 -->
+          <div class="spinner" style="grid-column: 1/-1;"></div>
+        </div>
+        <div style="text-align:center; margin-top: 32px;">
+          <a href="/pages/species/index.html" class="btn btn--outline">查看全部物種</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 最新知識庫文章 -->
+    <section class="section">
+      <div class="container">
+        <div class="section__header">
+          <div class="section__label">Knowledge</div>
+          <h2 class="section__title">最新文章</h2>
+        </div>
+        <div class="knowledge-list" id="latestArticles">
+          <div class="spinner" style="grid-column: 1/-1;"></div>
+        </div>
+        <div style="text-align:center; margin-top: 32px;">
+          <a href="/pages/knowledge/index.html" class="btn btn--outline">查看所有文章</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 最新投稿照片 -->
+    <section class="section section--gray">
+      <div class="container">
+        <div class="section__header">
+          <div class="section__label">Recent Submissions</div>
+          <h2 class="section__title">最新投稿照片</h2>
+          <p class="section__subtitle">由社群成員最新上傳並通過審核的觀察紀錄</p>
+        </div>
+        <div class="latest-photo-grid" id="latestPhotos">
+          <div class="spinner" style="grid-column: 1/-1;"></div>
+        </div>
+        <div style="text-align:center; margin-top: 32px;">
+          <a href="/pages/gallery/index.html" class="btn btn--outline">前往藝廊</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 加入社群號召 -->
+    <section class="cta">
+      <div class="container">
+        <h2 class="cta__title">一起記錄台灣的海蛞蝓</h2>
+        <p class="cta__subtitle">
+          您在海底拍到的每一張照片，都是珍貴的生態紀錄。<br>
+          投稿觀察資料，讓更多人認識這些美麗的生物。
+        </p>
+        <div class="cta__actions">
+          <a href="/pages/submit.html" class="btn btn--white">立即投稿</a>
+          <a href="/pages/about.html" class="btn btn--ghost">了解更多</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 頁尾（由 template.js 注入）-->
+  <div id="footer-placeholder"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/template.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    // 首頁動態資料載入
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadStats();
+      await loadLatestSpecies();
+      await loadLatestArticles();
+      await loadLatestPhotos();
+    });
+
+    // 統計數字
+    async function loadStats() {
+      try {
+        const [{ count: speciesCount }, { count: photosCount }, { count: contributorsCount }] =
+          await Promise.all([
+            supabase.from('species').select('*', { count: 'exact', head: true }),
+            supabase.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+            supabase.from('profiles').select('*', { count: 'exact', head: true }),
+          ]);
+
+        document.getElementById('statsSpecies').textContent      = speciesCount ?? 0;
+        document.getElementById('statsPhotos').textContent       = photosCount  ?? 0;
+        document.getElementById('statsContributors').textContent = contributorsCount ?? 0;
+      } catch (e) {
+        console.error('統計載入失敗', e);
+      }
+    }
+
+    // 最新物種（4 筆）
+    async function loadLatestSpecies() {
+      const container = document.getElementById('latestSpecies');
+      try {
+        const { data, error } = await supabase
+          .from('species')
+          .select('id, name_zh, name_sci, cover_image')
+          .order('created_at', { ascending: false })
+          .limit(4);
+
+        if (error) throw error;
+
+        container.innerHTML = (data && data.length > 0)
+          ? data.map(s => `
+              <a href="/pages/species/${s.id}.html" class="card">
+                <img class="card__image" src="${s.cover_image || ''}" alt="${s.name_zh}"
+                     onerror="this.style.background='var(--color-border)'">
+                <div class="card__body">
+                  <div class="card__title">${s.name_zh}</div>
+                  <div class="card__meta sci-name">${s.name_sci}</div>
+                </div>
+              </a>`).join('')
+          : '<div class="empty-state"><div class="empty-state__icon">🐚</div><p class="empty-state__text">資料更新中</p></div>';
+      } catch (e) {
+        container.innerHTML = '<div class="empty-state"><p class="empty-state__text">載入失敗</p></div>';
+      }
+    }
+
+    // 最新文章（4 筆）
+    async function loadLatestArticles() {
+      const container = document.getElementById('latestArticles');
+      try {
+        const { data, error } = await supabase
+          .from('articles')
+          .select('id, title, excerpt, cover_image, published_at')
+          .eq('published', true)
+          .order('published_at', { ascending: false })
+          .limit(4);
+
+        if (error) throw error;
+
+        container.innerHTML = (data && data.length > 0)
+          ? data.map(a => `
+              <a href="/pages/knowledge/${a.id}.html" class="card" style="display:flex; flex-direction:row;">
+                <img style="width:140px; height:100%; object-fit:cover; flex-shrink:0;"
+                     src="${a.cover_image || ''}" alt="${a.title}"
+                     onerror="this.style.background='var(--color-border)'">
+                <div class="card__body">
+                  <div class="card__meta">${new Date(a.published_at).toLocaleDateString('zh-Hant')}</div>
+                  <div class="card__title">${a.title}</div>
+                  <div class="card__excerpt">${a.excerpt || ''}</div>
+                </div>
+              </a>`).join('')
+          : '<div class="empty-state"><div class="empty-state__icon">📖</div><p class="empty-state__text">文章更新中</p></div>';
+      } catch (e) {
+        container.innerHTML = '<div class="empty-state"><p class="empty-state__text">載入失敗</p></div>';
+      }
+    }
+
+    // 最新投稿照片（8 筆）
+    async function loadLatestPhotos() {
+      const container = document.getElementById('latestPhotos');
+      try {
+        const { data, error } = await supabase
+          .from('submissions')
+          .select('id, photos, species_id, species(name_zh)')
+          .eq('status', 'approved')
+          .order('reviewed_at', { ascending: false })
+          .limit(8);
+
+        if (error) throw error;
+
+        container.innerHTML = (data && data.length > 0)
+          ? data.map(s => `
+              <a href="/pages/species/${s.species_id}.html" class="latest-photo-item" title="${s.species?.name_zh || ''}">
+                <img src="${s.photos?.[0] || ''}" alt="${s.species?.name_zh || ''}"
+                     data-lightbox="${s.photos?.[0] || ''}"
+                     onerror="this.style.background='var(--color-border)'">
+              </a>`).join('')
+          : '<div class="empty-state" style="grid-column:1/-1"><p class="empty-state__text">尚無投稿資料</p></div>';
+      } catch (e) {
+        container.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p class="empty-state__text">載入失敗</p></div>';
+      }
+    }
+  </script>
+</body>
+</html>

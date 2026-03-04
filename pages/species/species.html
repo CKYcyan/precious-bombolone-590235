@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>物種 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link rel="stylesheet" href="../../css/responsive.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    .species-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 36px;
+      align-items: start;
+    }
+
+    /* 分類階層 */
+    .taxonomy {
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .taxonomy__title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-text-muted); margin-bottom: 14px; }
+    .taxonomy__list  { display: flex; flex-direction: column; gap: 6px; }
+    .taxonomy__row   { display: flex; align-items: baseline; gap: 8px; }
+    .taxonomy__rank  { font-size: 0.78rem; color: var(--color-text-muted); width: 60px; flex-shrink: 0; }
+    .taxonomy__name  { font-size: 0.92rem; color: var(--color-dark); }
+    .taxonomy__name--sci { font-style: italic; font-family: Georgia, serif; }
+
+    /* 照片集 */
+    .photo-main {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      margin-bottom: 12px;
+      cursor: zoom-in;
+      background: var(--color-border);
+    }
+    .photo-thumbs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .photo-thumb {
+      width: 70px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: var(--transition);
+      background: var(--color-border);
+    }
+    .photo-thumb.active { border-color: var(--color-secondary); }
+    .photo-thumb:hover  { border-color: var(--color-secondary); }
+
+    /* 物種描述 */
+    .species-desc { line-height: 1.85; font-size: 0.98rem; }
+    .species-desc h2 { font-size: 1.2rem; font-weight: 700; margin: 24px 0 10px; }
+    .species-desc p  { margin-bottom: 12px; }
+    .species-desc em { font-style: italic; font-family: Georgia, serif; }
+
+    /* 資訊欄 */
+    .info-card {
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .info-card__header {
+      padding: 12px 18px;
+      background: #f8f9fa;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+    }
+    .info-card__body { padding: 14px 18px; }
+    .info-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* 專家確認 */
+    .expert-list { display: flex; flex-direction: column; gap: 10px; }
+    .expert-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+    }
+    .expert-item--ok  { background: #f0fdf4; border-color: #bbf7d0; }
+    .expert-item--no  { background: #fef2f2; border-color: #fecaca; }
+    .expert-badge     { font-size: 1.1rem; }
+    .expert-name      { font-weight: 600; font-size: 0.9rem; flex: 1; }
+    .expert-note      { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 4px; }
+
+    /* 相似物種 */
+    .similar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .similar-card {
+      text-decoration: none;
+      color: var(--color-text);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      transition: var(--transition);
+    }
+    .similar-card:hover { box-shadow: var(--shadow-sm); color: var(--color-text); }
+    .similar-card img   { width: 100%; aspect-ratio: 3/2; object-fit: cover; background: var(--color-border); }
+    .similar-card__name { padding: 8px 10px; font-size: 0.82rem; font-weight: 600; }
+    .similar-card__sci  { padding: 0 10px 8px; font-size: 0.75rem; color: var(--color-text-muted); font-style: italic; font-family: Georgia, serif; }
+
+    @media (max-width: 1024px) {
+      .species-layout { grid-template-columns: 1fr; }
+    }
+
+    /* 觀察紀錄 */
+    .obs-record {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      background: #fff;
+    }
+    .obs-record__header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .obs-record__avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--color-border);
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+    .obs-record__name  { font-weight: 700; font-size: 0.92rem; color: var(--color-dark); }
+    .obs-record__meta  { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; }
+    .obs-record__photos {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .obs-record__photo {
+      width: 80px; height: 60px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      cursor: zoom-in;
+      border: 1.5px solid var(--color-border);
+      transition: var(--transition);
+    }
+    .obs-record__photo:hover { border-color: var(--color-secondary); }
+    .obs-record__note {
+      font-size: 0.85rem;
+      color: var(--color-text);
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+
+    /* Lightbox */
+    .lb-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.88);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; cursor: zoom-out;
+      animation: lbFadeIn 0.18s ease;
+    }
+    @keyframes lbFadeIn { from { opacity:0; } to { opacity:1; } }
+    .lb-close {
+      position: fixed; top: 16px; right: 20px;
+      color: #fff; font-size: 2rem; cursor: pointer;
+      opacity: 0.8; transition: opacity 0.15s;
+    }
+    .lb-close:hover { opacity: 1; }
+    .lb-caption {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.85); font-size: 0.88rem;
+      background: rgba(0,0,0,0.45); padding: 5px 14px;
+      border-radius: 99px;
+    }
+    .lb-nav {
+      position: fixed; top: 50%; transform: translateY(-50%);
+      color: #fff; font-size: 2.4rem; cursor: pointer;
+      opacity: 0.6; transition: opacity 0.15s; user-select: none; padding: 12px;
+    }
+    .lb-nav:hover { opacity: 1; }
+    .lb-prev { left: 8px; }
+    .lb-next { right: 8px; }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <div id="loadingState" style="padding: 80px 0; text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>
+
+    <div id="speciesPage" style="display:none;">
+      <!-- 頁面頂部 -->
+      <div class="page-hero">
+        <div class="container">
+          <div class="page-hero__label" id="speciesOrder"></div>
+          <h1 class="page-hero__title" id="speciesNameZh"></h1>
+          <p class="page-hero__subtitle sci-name" id="speciesNameSci" style="font-style:italic;"></p>
+        </div>
+      </div>
+
+      <section class="section">
+        <div class="container">
+          <div style="margin-bottom: 12px;">
+            <a href="index.html" style="font-size:0.88rem; color:var(--color-text-muted);">← 物種資料庫</a>
+          </div>
+          <div class="species-layout">
+
+            <!-- 左欄：照片 + 描述 + 分布地圖 -->
+            <div>
+              <!-- 照片集 -->
+              <img class="photo-main" id="photoMain" src="" alt="" style="display:none;" onerror="this.onerror=null; this.style.background='var(--color-border)'">
+              <div class="photo-thumbs" id="photoThumbs"></div>
+
+              <!-- 物種描述 -->
+              <div style="margin-top: 32px;">
+                <h2 style="font-size:1.1rem; font-weight:700; color:var(--color-dark); margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid var(--color-secondary);">物種描述</h2>
+                <div class="species-desc" id="speciesDesc"></div>
+              </div>
+
+              <!-- 分布地圖 -->
+              <div style="margin-top: 32px;" id="mapSection">
+                <h2 style="font-size:1.1rem; font-weight:700; color:var(--color-dark); margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid var(--color-secondary);">台灣分布地點</h2>
+                <div id="speciesMap" style="width:100%; height:360px; border-radius:var(--radius-md); border:1px solid var(--color-border); background:#eef2f1;"></div>
+                <p id="noMapData" style="color:var(--color-text-muted); font-size:0.88rem; margin-top:8px; display:none;">尚無觀察地點紀錄</p>
+              </div>
+
+              <!-- 觀察紀錄 -->
+              <div style="margin-top: 40px;" id="obsSection">
+                <h2 style="font-size:1.1rem; font-weight:700; color:var(--color-dark); margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid var(--color-secondary);">觀察紀錄</h2>
+                <div id="obsList"></div>
+                <p id="noObs" style="color:var(--color-text-muted); font-size:0.88rem; display:none;">尚無觀察紀錄</p>
+              </div>
+            </div>
+
+            <!-- 右欄：資訊 -->
+            <div>
+              <!-- 分類階層 -->
+              <div class="taxonomy">
+                <div class="taxonomy__title">分類階層</div>
+                <div class="taxonomy__list" id="taxonomyList"></div>
+              </div>
+
+              <!-- 標籤資訊（食性、棲地、地點等）-->
+              <div id="tagSections"></div>
+
+              <!-- WoRMS 連結 -->
+              <div id="wormsLink" style="display:none;" class="info-card">
+                <div class="info-card__header">外部連結</div>
+                <div class="info-card__body">
+                  <a id="wormsAnchor" href="" target="_blank" class="btn btn--outline btn--sm" style="width:100%; justify-content:center;">
+                    查看 WoRMS 資料庫 →
+                  </a>
+                </div>
+              </div>
+
+              <!-- 專家確認 -->
+              <div class="info-card">
+                <div class="info-card__header">專家確認鑑定</div>
+                <div class="info-card__body">
+                  <div id="expertList" class="expert-list"></div>
+                  <div id="noExpert" style="color:var(--color-text-muted); font-size:0.88rem; display:none;">尚無專家確認記錄</div>
+                  <!-- 專家確認按鈕（登入專家才看到）-->
+                  <div id="expertActions" style="margin-top:14px; display:none;">
+                    <div style="border-top:1px solid var(--color-border); padding-top:14px;">
+                      <div style="font-size:0.85rem; font-weight:700; margin-bottom:10px; color:var(--color-dark);">您的鑑定確認</div>
+                      <div style="display:flex; gap:8px;">
+                        <button onclick="submitVerification(true)"  class="btn btn--primary btn--sm" style="flex:1;">✓ 確認無誤</button>
+                        <button onclick="showRejectForm()" class="btn btn--sm" style="flex:1; border:1px solid #fecaca; color:#b91c1c;">✗ 有疑慮</button>
+                      </div>
+                      <div id="rejectForm" style="display:none; margin-top:10px;">
+                        <textarea id="rejectNote" class="form-textarea" rows="3" placeholder="請說明您的疑慮…"></textarea>
+                        <button onclick="submitVerification(false)" class="btn btn--primary btn--sm" style="margin-top:8px; width:100%;">送出</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 相似物種 -->
+              <div class="info-card" id="similarSection" style="display:none;">
+                <div class="info-card__header">相似物種</div>
+                <div class="info-card__body">
+                  <div class="similar-grid" id="similarGrid"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/template.js"></script>
+  <script src="../../js/nav.js"></script>
+  <script>
+    let speciesId   = null;
+    let _speciesMap       = null;
+    let _speciesMapPoints = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      speciesId = params.get('id');
+      if (!speciesId) { window.location.href = 'index.html'; return; }
+      await loadSpecies();
+      await checkExpertStatus();
+    });
+
+    async function loadSpecies() {
+      const { data, error } = await supabase
+        .from('species')
+        .select(`
+          *,
+          species_tags(tag_id, tags(id, name, categories(id, name, slug)))
+        `)
+        .eq('id', speciesId)
+        .single();
+
+      if (error || !data) { window.location.href = 'index.html'; return;}
+
+      document.title = `${data.name_zh} — 台灣海蛞蝓紀錄`;
+      document.getElementById('speciesNameZh').textContent  = data.name_zh;
+      document.getElementById('speciesNameSci').textContent = `${data.name_sci}${data.name_author ? ` ${data.name_author}` : ''}${data.name_year ? `, ${data.name_year}` : ''}`;
+      document.getElementById('speciesOrder').textContent   = [data.taxon_order, data.taxon_family].filter(Boolean).join(' · ');
+
+      // 分類階層
+      const ranks = [
+        { rank:'門',  name: data.taxon_phylum,   sci: false },
+        { rank:'綱',  name: data.taxon_class,    sci: false },
+        { rank:'亞綱', name: data.taxon_subclass, sci: false },
+        { rank:'目',  name: data.taxon_order,    sci: false },
+        { rank:'科',  name: data.taxon_family,   sci: false },
+        { rank:'屬',  name: data.taxon_genus,    sci: true  },
+        { rank:'種',  name: data.name_sci,       sci: true  },
+      ].filter(r => r.name);
+      document.getElementById('taxonomyList').innerHTML = ranks.map(r => `
+        <div class="taxonomy__row">
+          <span class="taxonomy__rank">${r.rank}</span>
+          <span class="taxonomy__name ${r.sci ? 'taxonomy__name--sci' : ''}">${r.name}</span>
+        </div>`).join('');
+
+      // 描述
+      document.getElementById('speciesDesc').innerHTML = data.description || '<p style="color:var(--color-text-muted);">敘述資料整理中。</p>';
+
+      // 照片（從觀察紀錄收集，封面為備援）
+      await loadPhotos(data.cover_image);
+
+      // 標籤依類別分組
+      const catMap = {};
+      data.species_tags?.forEach(st => {
+        const cat = st.tags?.categories;
+        if (!cat) return;
+        if (!catMap[cat.slug]) catMap[cat.slug] = { name: cat.name, tags: [] };
+        catMap[cat.slug].tags.push(st.tags.name);
+      });
+      document.getElementById('tagSections').innerHTML = Object.values(catMap).map(cat => `
+        <div class="info-card" style="margin-bottom:16px;">
+          <div class="info-card__header">${cat.name}</div>
+          <div class="info-card__body">
+            <div class="info-tags">${cat.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+          </div>
+        </div>`).join('');
+
+      // WoRMS
+      if (data.worms_url) {
+        document.getElementById('wormsLink').style.display = 'block';
+        document.getElementById('wormsAnchor').href = data.worms_url;
+      }
+
+      // 相似物種（獨立查詢，避免影響主查詢）
+      await loadSimilarSpecies();
+
+      // 載入專家確認
+      await loadVerifications();
+
+      // 載入分布地點
+      await loadObservationPoints();
+
+      // 載入觀察紀錄列表
+      await loadObservationRecords();
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('speciesPage').style.display  = 'block';
+      // 地圖在 display:none 時初始化，顯示後重算尺寸並重新對焦
+      if (_speciesMap) setTimeout(() => {
+        _speciesMap.invalidateSize();
+        if (_speciesMapPoints.length === 1) {
+          _speciesMap.setView([parseFloat(_speciesMapPoints[0].location_lat), parseFloat(_speciesMapPoints[0].location_lng)], 12);
+        } else if (_speciesMapPoints.length > 1) {
+          const bounds = L.latLngBounds(_speciesMapPoints.map(p => [parseFloat(p.location_lat), parseFloat(p.location_lng)]));
+          _speciesMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+      }, 50);
+    }
+
+    // 相似物種
+    async function loadSimilarSpecies() {
+      try {
+        const { data } = await supabase
+          .from('species_similar')
+          .select('similar_id, species!species_similar_similar_id_fkey(id, name_zh, name_sci, cover_image)')
+          .eq('species_id', speciesId);
+        const similar = (data || []).map(ss => ss.species).filter(Boolean);
+        if (similar.length) {
+          document.getElementById('similarSection').style.display = 'block';
+          document.getElementById('similarGrid').innerHTML = similar.map(s => `
+            <a href="species.html?id=${s.id}" class="similar-card">
+              <img src="${s.cover_image||''}" alt="${s.name_zh}" onerror="this.style.background='var(--color-border)'">
+              <div class="similar-card__name">${s.name_zh}</div>
+              <div class="similar-card__sci">${s.name_sci}</div>
+            </a>`).join('');
+        }
+      } catch (_) { /* 靜默失敗，相似物種不影響主頁面 */ }
+    }
+
+    // 專家確認列表
+    async function loadVerifications() {
+      const { data } = await supabase
+        .from('expert_verifications')
+        .select('verified, note, profiles(display_name)')
+        .eq('species_id', speciesId);
+
+      const list = document.getElementById('expertList');
+      const none = document.getElementById('noExpert');
+
+      if (!data?.length) { none.style.display = 'block'; list.innerHTML = ''; return; }
+      none.style.display = 'none';
+      list.innerHTML = data.map(v => `
+        <div class="expert-item ${v.verified ? 'expert-item--ok' : 'expert-item--no'}">
+          <span class="expert-badge">${v.verified ? '✓' : '✗'}</span>
+          <div>
+            <div class="expert-name">${v.profiles?.display_name || '專家'}</div>
+            ${v.note ? `<div class="expert-note">${v.note}</div>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    // 載入觀察地點
+    async function loadObservationPoints() {
+      const { data } = await supabase
+        .from('submissions')
+        .select('location_lat, location_lng, location_text, observed_at, submitter_name')
+        .eq('species_id', speciesId)
+        .eq('status', 'approved')
+        .not('location_lat', 'is', null);
+
+      if (!data?.length) {
+        document.getElementById('noMapData').style.display = 'block';
+        document.getElementById('speciesMap').style.display = 'none';
+        return;
+      }
+      renderMap(data);
+    }
+
+    function renderMap(points) {
+      _speciesMapPoints = points;
+
+      // 用正確座標初始化，避免 display:none 時 setView 位置跑掉
+      const lats = points.map(p => parseFloat(p.location_lat));
+      const lngs = points.map(p => parseFloat(p.location_lng));
+      const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+      const initZoom  = points.length === 1 ? 12 : 7;
+
+      const map = L.map('speciesMap', { center: [centerLat, centerLng], zoom: initZoom });
+      _speciesMap = map;
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18,
+      }).addTo(map);
+
+      points.forEach(p => {
+        const lat  = parseFloat(p.location_lat);
+        const lng  = parseFloat(p.location_lng);
+        const date = p.observed_at ? new Date(p.observed_at).toLocaleDateString('zh-Hant') : '';
+        const popup = [
+          p.location_text ? `<strong>${p.location_text}</strong>` : '',
+          date ? `觀察日期：${date}` : '',
+          p.submitter_name ? `紀錄者：${p.submitter_name}` : '',
+        ].filter(Boolean).join('<br>') || '觀察地點';
+        L.marker([lat, lng]).addTo(map).bindPopup(popup);
+      });
+    }
+
+    // 觀察紀錄列表
+    async function loadObservationRecords() {
+      const { data } = await supabase
+        .from('submissions')
+        .select('id, submitter_name, observed_at, location_text, photos, behavior_notes')
+        .eq('species_id', speciesId)
+        .eq('status', 'approved')
+        .order('observed_at', { ascending: false });
+
+      const list = document.getElementById('obsList');
+      const none = document.getElementById('noObs');
+
+      if (!data?.length) { none.style.display = 'block'; list.innerHTML = ''; return; }
+      none.style.display = 'none';
+
+      list.innerHTML = data.map(r => {
+        const date     = r.observed_at ? new Date(r.observed_at).toLocaleDateString('zh-Hant-TW', { year:'numeric', month:'long', day:'numeric' }) : '';
+        const meta     = [date, r.location_text].filter(Boolean).join(' · ');
+        const photos   = Array.isArray(r.photos) ? r.photos : [];
+        const initials = (r.submitter_name || '?')[0].toUpperCase();
+
+        return `
+        <div class="obs-record">
+          <div class="obs-record__header">
+            <div class="obs-record__avatar" style="display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;color:#fff;background:var(--color-secondary);">${initials}</div>
+            <div>
+              <div class="obs-record__name">${r.submitter_name || '匿名'}</div>
+              ${meta ? `<div class="obs-record__meta">${meta}</div>` : ''}
+            </div>
+          </div>
+          ${photos.length ? `
+          <div class="obs-record__photos">
+            ${photos.map((url, i) => `
+              <img class="obs-record__photo" src="${url}" alt=""
+                   onclick="openGalleryLightbox(${_galleryPhotos.indexOf(url) >= 0 ? _galleryPhotos.indexOf(url) : 0})"
+                   onerror="this.onerror=null; this.style.visibility='hidden'">`).join('')}
+          </div>` : ''}
+          ${r.behavior_notes ? `<div class="obs-record__note">${r.behavior_notes}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    /* ── 照片集 ── */
+    let _galleryPhotos = [];
+    let _galleryIndex  = 0;
+
+    async function loadPhotos(coverImage) {
+      const { data } = await supabase
+        .from('submissions')
+        .select('photos')
+        .eq('species_id', speciesId)
+        .eq('status', 'approved')
+        .not('photos', 'is', null);
+
+      let allPhotos = [];
+      (data || []).forEach(sub => {
+        if (Array.isArray(sub.photos)) allPhotos.push(...sub.photos);
+      });
+
+      if (allPhotos.length === 0 && coverImage) allPhotos = [coverImage];
+      _galleryPhotos = allPhotos;
+      renderPhotoGallery(allPhotos);
+    }
+
+    function renderPhotoGallery(photos) {
+      if (!photos.length) return;
+
+      const main   = document.getElementById('photoMain');
+      const thumbs = document.getElementById('photoThumbs');
+
+      main.src = photos[0];
+      main.style.display = 'block';
+      main.onclick = () => openGalleryLightbox(0);
+
+      if (photos.length > 1) {
+        thumbs.innerHTML = photos.map((url, i) => `
+          <img class="photo-thumb ${i === 0 ? 'active' : ''}"
+               src="${url}" alt=""
+               onclick="setMainPhoto(${i})"
+               onerror="this.onerror=null; this.style.background='var(--color-border)'">`
+        ).join('');
+      }
+    }
+
+    function setMainPhoto(index) {
+      _galleryIndex = index;
+      document.getElementById('photoMain').src = _galleryPhotos[index];
+      document.querySelectorAll('.photo-thumb').forEach((t, i) =>
+        t.classList.toggle('active', i === index));
+    }
+
+    function openGalleryLightbox(index) {
+      _galleryIndex = index;
+      renderGalleryLightbox();
+    }
+
+    function renderGalleryLightbox() {
+      document.getElementById('galleryLbOverlay')?.remove();
+      const url = _galleryPhotos[_galleryIndex];
+      const overlay = document.createElement('div');
+      overlay.id = 'galleryLbOverlay';
+      overlay.className = 'lb-overlay';
+      overlay.addEventListener('click', closeGalleryLightbox);
+      overlay.innerHTML = `
+        <span class="lb-close" onclick="closeGalleryLightbox()">✕</span>
+        ${_galleryPhotos.length > 1 ? `<span class="lb-nav lb-prev" onclick="event.stopPropagation(); galleryLbMove(-1)">‹</span>` : ''}
+        <img src="${url}" onclick="event.stopPropagation()" style="max-width:100%; max-height:90vh; object-fit:contain; border-radius:var(--radius-sm); box-shadow:0 8px 40px rgba(0,0,0,0.6);">
+        ${_galleryPhotos.length > 1 ? `<span class="lb-nav lb-next" onclick="event.stopPropagation(); galleryLbMove(1)">›</span>` : ''}
+        <div class="lb-caption">${_galleryIndex + 1} / ${_galleryPhotos.length}</div>`;
+      document.body.appendChild(overlay);
+    }
+
+    function galleryLbMove(dir) {
+      _galleryIndex = (_galleryIndex + dir + _galleryPhotos.length) % _galleryPhotos.length;
+      renderGalleryLightbox();
+      setMainPhoto(_galleryIndex);
+    }
+
+    function closeGalleryLightbox() {
+      document.getElementById('galleryLbOverlay')?.remove();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('galleryLbOverlay')) return;
+      if (e.key === 'Escape')     closeGalleryLightbox();
+      if (e.key === 'ArrowLeft')  galleryLbMove(-1);
+      if (e.key === 'ArrowRight') galleryLbMove(1);
+    });
+
+    // 確認專家身份
+    async function checkExpertStatus() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: profile } = await supabase
+        .from('profiles').select('role').eq('id', session.user.id).single();
+      if (profile?.role === 'expert' || profile?.role === 'admin') {
+        document.getElementById('expertActions').style.display = 'block';
+      }
+    }
+
+    function showRejectForm() {
+      document.getElementById('rejectForm').style.display = 'block';
+    }
+
+    async function submitVerification(verified) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const note = document.getElementById('rejectNote').value.trim() || null;
+      const { error } = await supabase.from('expert_verifications').upsert({
+        species_id: parseInt(speciesId),
+        expert_id:  session.user.id,
+        verified, note,
+      }, { onConflict: 'species_id,expert_id' });
+
+      if (error) { alert('送出失敗：' + error.message); return; }
+      document.getElementById('expertActions').style.display = 'none';
+      await loadVerifications();
+    }
+  </script>
+</body>
+</html>

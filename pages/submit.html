@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>投稿觀察紀錄 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    /* ===== 登入閘門 ===== */
+    .login-gate {
+      max-width: 440px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+    }
+    .login-gate__header {
+      background: linear-gradient(135deg, var(--color-dark), var(--color-primary));
+      color: #fff;
+      padding: 28px 32px 24px;
+      text-align: center;
+    }
+    .login-gate__icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .login-gate__title { font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
+    .login-gate__desc { font-size: 0.88rem; color: rgba(255,255,255,0.75); }
+    .login-gate__body { padding: 28px 32px; }
+    .login-gate__tabs {
+      display: flex;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: 22px;
+    }
+    .login-gate__tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: var(--transition);
+    }
+    .login-gate__tab.active {
+      color: var(--color-secondary);
+      border-bottom-color: var(--color-secondary);
+    }
+    .auth-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.87rem;
+      color: #dc2626;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .auth-success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.87rem;
+      color: #16a34a;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* ===== 投稿表單 ===== */
+    .submit-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    .submit-notice {
+      background: rgba(42,157,143,0.07);
+      border: 1px solid rgba(42,157,143,0.3);
+      border-radius: var(--radius-md);
+      padding: 14px 20px;
+      font-size: 0.88rem;
+      color: var(--color-primary);
+      margin-bottom: 28px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .submit-notice__icon { flex-shrink: 0; font-size: 1.1rem; margin-top: 1px; }
+
+    /* 步驟標題 */
+    .step-heading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .step-badge {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--color-secondary);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--color-dark);
+    }
+    .step-subtitle {
+      font-size: 0.83rem;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    /* 表單區塊卡片 */
+    .form-card {
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    /* 多照片上傳 */
+    .photo-upload-zone {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      background: #fafafa;
+    }
+    .photo-upload-zone:hover, .photo-upload-zone.dragover {
+      border-color: var(--color-secondary);
+      background: rgba(42,157,143,0.04);
+    }
+    .photo-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .photo-strip__item { position: relative; width: 96px; height: 72px; }
+    .photo-strip__img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--color-border);
+    }
+    .photo-strip__remove {
+      position: absolute; top: -6px; right: -6px;
+      background: #e74c3c; color: #fff; border: none;
+      border-radius: 50%; width: 18px; height: 18px;
+      font-size: 0.6rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .photo-strip__uploading {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.4);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.72rem;
+    }
+
+    /* 成功狀態 */
+    .success-state {
+      text-align: center;
+      padding: 60px 24px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .success-state__icon { font-size: 4rem; margin-bottom: 20px; }
+    .success-state__title { font-size: 1.5rem; font-weight: 700; color: var(--color-dark); margin-bottom: 12px; }
+    .success-state__desc { color: var(--color-text-muted); line-height: 1.8; margin-bottom: 28px; }
+    .success-state__id {
+      display: inline-block;
+      background: rgba(42,157,143,0.1);
+      color: var(--color-secondary);
+      padding: 6px 16px;
+      border-radius: 99px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    /* 使用者資訊列 */
+    .user-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(42,157,143,0.06);
+      border: 1px solid rgba(42,157,143,0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      font-size: 0.88rem;
+    }
+    .user-bar__info { color: var(--color-text); }
+    .user-bar__name { font-weight: 700; color: var(--color-primary); }
+    .user-bar__logout { color: var(--color-text-muted); cursor: pointer; font-size: 0.82rem; }
+    .user-bar__logout:hover { color: var(--color-primary); }
+
+    /* 分隔線標籤 */
+    .divider-label {
+      display: flex; align-items: center; gap: 10px;
+      margin: 18px 0 14px;
+    }
+    .divider-label__line { flex: 1; height: 1px; background: var(--color-border); }
+    .divider-label__text {
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--color-text-muted); white-space: nowrap;
+    }
+
+    /* 標籤選取 */
+    .submit-tag {
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border: 1.5px solid var(--color-border);
+      color: var(--color-text-muted);
+      background: #fff;
+      transition: var(--transition);
+      user-select: none;
+    }
+    .submit-tag:hover { border-color: var(--color-secondary); color: var(--color-secondary); }
+    .submit-tag.active { border-color: var(--color-secondary); background: var(--color-secondary); color: #fff; }
+
+    /* 地圖選點 Modal */
+    .map-modal {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .map-modal__inner {
+      background: #fff;
+      border-radius: var(--radius-md);
+      width: 100%; max-width: 740px;
+      height: 500px;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .map-modal__header {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--color-border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    .map-modal__title { font-weight: 700; font-size: 0.95rem; color: var(--color-dark); }
+    .map-modal__hint  { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 2px; }
+    #mapPickerEl { flex: 1; }
+
+    /* 隱藏用 */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+
+    <!-- 頁面標題 -->
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">Submit</div>
+        <h1 class="page-hero__title">投稿觀察紀錄</h1>
+        <p class="page-hero__subtitle">分享你在水下發現的海蛞蝓，每一筆紀錄都是台灣海洋生態的珍貴資料</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container">
+
+        <!-- ===== 登入閘門（未登入時顯示） ===== -->
+        <div id="loginGate" class="hidden">
+          <div class="login-gate">
+            <div class="login-gate__header">
+              <div class="login-gate__icon">🔒</div>
+              <div class="login-gate__title">請先登入</div>
+              <div class="login-gate__desc">登入後即可投稿觀察紀錄</div>
+            </div>
+            <div class="login-gate__body">
+              <div class="login-gate__tabs">
+                <div class="login-gate__tab active" id="tabLogin" onclick="switchTab('login')">登入</div>
+                <div class="login-gate__tab" id="tabRegister" onclick="switchTab('register')">註冊</div>
+              </div>
+
+              <!-- 登入表單 -->
+              <div id="loginForm">
+                <div class="auth-error" id="loginError"></div>
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" id="loginEmail" class="form-input" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">密碼</label>
+                  <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
+                </div>
+                <button onclick="doLogin()" class="btn btn--primary" style="width:100%;" id="loginBtn">登入</button>
+              </div>
+
+              <!-- 註冊表單 -->
+              <div id="registerForm" class="hidden">
+                <div class="auth-error" id="registerError"></div>
+                <div class="auth-success" id="registerSuccess"></div>
+                <div class="form-group">
+                  <label class="form-label">顯示名稱 <span class="required">*</span></label>
+                  <input type="text" id="regName" class="form-input" placeholder="你的名字或暱稱">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email <span class="required">*</span></label>
+                  <input type="email" id="regEmail" class="form-input" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">密碼 <span class="required">*</span></label>
+                  <input type="password" id="regPassword" class="form-input" placeholder="至少 8 個字元">
+                </div>
+                <button onclick="doRegister()" class="btn btn--primary" style="width:100%;" id="registerBtn">建立帳號</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 投稿表單（已登入時顯示） ===== -->
+        <div id="submitSection" class="hidden">
+
+          <!-- 使用者資訊 -->
+          <div class="submit-wrap">
+            <div class="user-bar">
+              <div class="user-bar__info">
+                已登入為 <span class="user-bar__name" id="userDisplayName">—</span>
+                <span id="userEmail" style="color:var(--color-text-muted); margin-left:6px;"></span>
+              </div>
+              <span class="user-bar__logout" onclick="doLogout()">登出</span>
+            </div>
+          </div>
+
+          <!-- 成功畫面 -->
+          <div id="successState" class="hidden">
+            <div class="success-state">
+              <div class="success-state__icon">🎉</div>
+              <h2 class="success-state__title">投稿成功！</h2>
+              <div class="success-state__id" id="successId"></div>
+              <p class="success-state__desc">
+                感謝你的觀察紀錄，管理員將會審核你的投稿。<br>
+                審核結果會透過 Email 通知你。
+              </p>
+              <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="resetForm()" class="btn btn--primary">再投稿一筆</button>
+                <a href="../index.html" class="btn btn--outline">回到首頁</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 表單主體 -->
+          <div id="formBody" class="submit-wrap">
+
+            <div class="submit-notice">
+              <span class="submit-notice__icon">ℹ️</span>
+              <div>
+                投稿後管理員將進行審核。標有 <span style="color:#e74c3c; font-weight:700;">*</span> 為必填欄位，
+                分類學資訊若不確定可留空，管理員審核時會協助補充。
+              </div>
+            </div>
+
+            <!-- ── Step 1：物種資訊 ── -->
+            <div class="form-card">
+              <div class="step-heading">
+                <div class="step-badge">1</div>
+                <div>
+                  <div class="step-title">物種資訊</div>
+                  <div class="step-subtitle">填寫你認識的物種名稱與分類，不確定可以留空</div>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">中文名</label>
+                  <input type="text" id="name_zh" class="form-input" placeholder="例：安娜海蛞蝓">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">學名</label>
+                  <input type="text" id="name_sci" class="form-input" placeholder="Chromodoris annae">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">命名者</label>
+                  <input type="text" id="name_author" class="form-input" placeholder="Bergh">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">命名年份</label>
+                  <input type="number" id="name_year" class="form-input" placeholder="1877">
+                </div>
+              </div>
+
+              <!-- 分類階層 -->
+              <div class="divider-label">
+                <div class="divider-label__line"></div>
+                <div class="divider-label__text">分類階層（選填）</div>
+                <div class="divider-label__line"></div>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">門</label>
+                  <select id="taxon_phylum" class="form-select" data-taxon="taxon_phylum"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">綱</label>
+                  <select id="taxon_class" class="form-select" data-taxon="taxon_class"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">亞綱</label>
+                  <select id="taxon_subclass" class="form-select" data-taxon="taxon_subclass"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">下綱</label>
+                  <select id="taxon_infraclass" class="form-select" data-taxon="taxon_infraclass"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">準綱</label>
+                  <select id="taxon_cohort" class="form-select" data-taxon="taxon_cohort"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">總目</label>
+                  <select id="taxon_superorder" class="form-select" data-taxon="taxon_superorder"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">目</label>
+                  <select id="taxon_order" class="form-select" data-taxon="taxon_order"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">亞目</label>
+                  <select id="taxon_suborder" class="form-select" data-taxon="taxon_suborder"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">科</label>
+                  <select id="taxon_family" class="form-select" data-taxon="taxon_family"><option value="">— 選擇 —</option></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:0.78rem;">屬</label>
+                  <select id="taxon_genus" class="form-select" data-taxon="taxon_genus"><option value="">— 選擇 —</option></select>
+                </div>
+              </div>
+
+              <!-- 物種描述 -->
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">物種描述（選填）</label>
+                <textarea id="description" class="form-textarea" rows="4"
+                          placeholder="外觀特徵、體色、大小等描述…"></textarea>
+              </div>
+
+              <!-- WoRMS -->
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">WoRMS 連結（選填）</label>
+                <input type="url" id="worms_url" class="form-input"
+                       placeholder="https://www.marinespecies.org/aphia.php?p=taxdetails&id=…">
+              </div>
+            </div>
+
+            <!-- ── Step 2：觀察紀錄 ── -->
+            <div class="form-card">
+              <div class="step-heading">
+                <div class="step-badge">2</div>
+                <div>
+                  <div class="step-title">觀察紀錄</div>
+                  <div class="step-subtitle">上傳照片並填寫觀察資訊</div>
+                </div>
+              </div>
+
+              <!-- 照片上傳 -->
+              <div class="form-group">
+                <label class="form-label">觀察照片 <span class="required">*</span></label>
+                <div class="photo-upload-zone" id="photoZone"
+                     onclick="document.getElementById('photoInput').click()"
+                     ondragover="onDragOver(event)"
+                     ondragleave="onDragLeave()"
+                     ondrop="onDrop(event)">
+                  <div style="font-size:2rem; margin-bottom:8px;">📷</div>
+                  <div style="font-size:0.9rem; color:var(--color-text-muted);">
+                    <strong style="color:var(--color-secondary);">點擊或拖曳</strong>上傳照片（可多張，每張最大 10 MB）
+                  </div>
+                  <div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px;">支援 JPG、PNG、WEBP</div>
+                </div>
+                <input type="file" id="photoInput" accept="image/*" multiple style="display:none;"
+                       onchange="handlePhotoFiles(this.files)">
+                <div class="photo-strip" id="photoStrip"></div>
+              </div>
+
+              <!-- 日期 + 水深 -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">觀察日期</label>
+                  <input type="date" id="observed_at" class="form-input">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">水深（公尺）</label>
+                  <input type="number" id="depth_m" class="form-input" placeholder="例：12" min="0">
+                </div>
+              </div>
+
+              <!-- 地點 -->
+              <div class="form-group">
+                <label class="form-label">地點描述</label>
+                <input type="text" id="location_text" class="form-input"
+                       placeholder="例：墾丁萬里桐、小琉球花瓶岩">
+              </div>
+
+              <!-- GPS -->
+              <div style="margin-bottom:14px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                  <label class="form-label" style="margin:0;">GPS 座標（選填）</label>
+                  <button type="button" onclick="openMapModal()"
+                          class="btn btn--outline btn--sm" style="font-size:0.8rem;">
+                    📍 地圖選點
+                  </button>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <input type="number" id="location_lat" class="form-input"
+                         placeholder="緯度 21.9342" step="0.0000001">
+                  <input type="number" id="location_lng" class="form-input"
+                         placeholder="經度 120.7511" step="0.0000001">
+                </div>
+                <div id="coordDisplay" style="font-size:0.78rem; color:var(--color-secondary); margin-top:5px; display:none;"></div>
+              </div>
+
+              <!-- 行為描述 -->
+              <div class="form-group">
+                <label class="form-label">行為描述 / 補充說明（選填）</label>
+                <textarea id="behavior_notes" class="form-textarea" rows="4"
+                          placeholder="觀察到的行為、周圍環境、特殊紀錄…"></textarea>
+              </div>
+
+              <!-- 標籤 -->
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">標籤（選填）</label>
+                <p style="font-size:0.82rem; color:var(--color-text-muted); margin:0 0 10px;">
+                  可選取體色、習性等特徵，方便管理員審核時快速辨識
+                </p>
+                <div id="submitTagPicker"><div class="spinner" style="margin:0; width:20px; height:20px;"></div></div>
+              </div>
+            </div>
+
+            <!-- ── Step 3：確認並送出 ── -->
+            <div class="form-card">
+              <div class="step-heading">
+                <div class="step-badge">3</div>
+                <div>
+                  <div class="step-title">確認投稿</div>
+                  <div class="step-subtitle">請確認資訊無誤後送出</div>
+                </div>
+              </div>
+
+              <!-- 紀錄者 -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">紀錄者姓名 <span class="required">*</span></label>
+                  <input type="text" id="submitter_name" class="form-input" placeholder="你的姓名或暱稱">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">聯絡 Email <span class="required">*</span></label>
+                  <input type="email" id="submitter_email" class="form-input" readonly
+                         style="background:#f5f5f5; cursor:not-allowed;">
+                </div>
+              </div>
+
+              <!-- 版權聲明 -->
+              <div style="background:#fafafa; border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:20px; font-size:0.85rem; color:var(--color-text-muted); line-height:1.8;">
+                📋 <strong>著作權聲明：</strong>投稿的照片與文字內容版權歸投稿者所有。
+                投稿即表示同意授權本網站以 CC BY-NC 4.0 授權條款使用你的觀察紀錄，
+                用於台灣海洋生物記錄與教育推廣目的。
+              </div>
+
+              <!-- 錯誤訊息 -->
+              <div id="submitError" class="auth-error"></div>
+
+              <button onclick="submitRecord()" class="btn btn--primary" id="submitBtn"
+                      style="width:100%; padding:13px; font-size:1rem;">
+                📤 送出投稿
+              </button>
+            </div>
+
+          </div><!-- /formBody -->
+        </div><!-- /submitSection -->
+
+        <!-- ===== 載入中 ===== -->
+        <div id="loadingState" style="text-align:center; padding:80px 0;">
+          <div class="spinner"></div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <!-- 地圖選點 Modal -->
+  <div id="mapModal" class="map-modal hidden">
+    <div class="map-modal__inner">
+      <div class="map-modal__header">
+        <div>
+          <div class="map-modal__title">點擊地圖選擇觀察地點</div>
+          <div class="map-modal__hint">點擊或拖曳圖釘以設定座標</div>
+        </div>
+        <button onclick="closeMapModal()" class="btn btn--primary btn--sm">✓ 確認座標</button>
+      </div>
+      <div id="mapPickerEl"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/template.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    /* ── 狀態 ── */
+    let currentUser      = null;
+    let currentProfile   = null;
+    let uploadedPhotos   = [];
+    let selectedTagIds   = new Set();
+
+    /* ── 初始化 ── */
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        currentUser = session.user;
+        await loadProfile();
+        showSubmitForm();
+      } else {
+        showLoginGate();
+      }
+    });
+
+    /* ── 顯示切換 ── */
+    function showLoginGate() {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('loginGate').classList.remove('hidden');
+      document.getElementById('submitSection').classList.add('hidden');
+    }
+
+    async function showSubmitForm() {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('loginGate').classList.add('hidden');
+      document.getElementById('submitSection').classList.remove('hidden');
+
+      // 使用者資訊
+      const name  = currentProfile?.display_name || currentUser?.email?.split('@')[0] || '未命名';
+      const email = currentUser?.email || '';
+      document.getElementById('userDisplayName').textContent = name;
+      document.getElementById('userEmail').textContent = email;
+      document.getElementById('submitter_name').value  = name;
+      document.getElementById('submitter_email').value = email;
+
+      // 預設今天日期
+      document.getElementById('observed_at').value = new Date().toISOString().split('T')[0];
+
+      // 載入分類下拉選單 & 標籤面板
+      await Promise.all([loadTaxonDropdowns(), loadSubmitTagPicker()]);
+    }
+
+    async function loadProfile() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url')
+        .eq('id', currentUser.id)
+        .single();
+      currentProfile = data;
+    }
+
+    /* ── 登入/註冊 Tab ── */
+    function switchTab(tab) {
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+      document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+    }
+
+    /* ── 登入 ── */
+    async function doLogin() {
+      const email    = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errEl    = document.getElementById('loginError');
+      const btn      = document.getElementById('loginBtn');
+      errEl.style.display = 'none';
+
+      if (!email || !password) { showAuthError(errEl, '請填寫 Email 和密碼'); return; }
+
+      btn.disabled = true; btn.textContent = '登入中…';
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      btn.disabled = false; btn.textContent = '登入';
+
+      if (error) { showAuthError(errEl, translateAuthError(error.message)); return; }
+      currentUser = data.user;
+      await loadProfile();
+      showSubmitForm();
+    }
+
+    /* ── 註冊 ── */
+    async function doRegister() {
+      const name     = document.getElementById('regName').value.trim();
+      const email    = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const errEl    = document.getElementById('registerError');
+      const sucEl    = document.getElementById('registerSuccess');
+      const btn      = document.getElementById('registerBtn');
+      errEl.style.display = 'none'; sucEl.style.display = 'none';
+
+      if (!name)  { showAuthError(errEl, '請填寫顯示名稱'); return; }
+      if (!email) { showAuthError(errEl, '請填寫 Email'); return; }
+      if (password.length < 8) { showAuthError(errEl, '密碼至少需要 8 個字元'); return; }
+
+      btn.disabled = true; btn.textContent = '建立中…';
+      const { data, error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { display_name: name } }
+      });
+      btn.disabled = false; btn.textContent = '建立帳號';
+
+      if (error) { showAuthError(errEl, translateAuthError(error.message)); return; }
+
+      // 若需 email 驗證
+      if (data.user && !data.session) {
+        sucEl.textContent = '帳號已建立！請檢查你的信箱並點擊驗證連結後再登入。';
+        sucEl.style.display = 'block';
+        return;
+      }
+
+      // 直接登入成功
+      currentUser = data.user;
+      await loadProfile();
+      showSubmitForm();
+    }
+
+    /* ── 登出 ── */
+    async function doLogout() {
+      await supabase.auth.signOut();
+      currentUser = null; currentProfile = null;
+      resetForm();
+      showLoginGate();
+    }
+
+    /* ── 分類下拉 ── */
+    async function loadTaxonDropdowns() {
+      const taxonSlugs = ['taxon_phylum','taxon_class','taxon_subclass','taxon_infraclass',
+                          'taxon_cohort','taxon_superorder','taxon_order','taxon_suborder',
+                          'taxon_family','taxon_genus'];
+      const { data: cats } = await supabase
+        .from('categories')
+        .select('slug, tags(name, sort_order)')
+        .in('slug', taxonSlugs);
+      if (!cats) return;
+
+      const taxonMap = {};
+      cats.forEach(cat => {
+        taxonMap[cat.slug] = (cat.tags || []).sort((a, b) => a.sort_order - b.sort_order);
+      });
+
+      document.querySelectorAll('select[data-taxon]').forEach(sel => {
+        const options = taxonMap[sel.dataset.taxon] || [];
+        sel.innerHTML = '<option value="">— 選擇 —</option>' +
+          options.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+      });
+    }
+
+    /* ── 地圖選點 ── */
+    let _mapPicker = null;
+    let _mapMarker = null;
+
+    function openMapModal() {
+      document.getElementById('mapModal').classList.remove('hidden');
+      if (!_mapPicker) {
+        _mapPicker = L.map('mapPickerEl').setView([23.5, 121], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 18,
+        }).addTo(_mapPicker);
+
+        _mapPicker.on('click', function(e) {
+          const { lat, lng } = e.latlng;
+          setMapCoord(lat, lng);
+        });
+      }
+
+      // 若已有座標則移至該點
+      const lat = parseFloat(document.getElementById('location_lat').value);
+      const lng = parseFloat(document.getElementById('location_lng').value);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setMapCoord(lat, lng);
+        _mapPicker.setView([lat, lng], 12);
+      }
+      setTimeout(() => _mapPicker.invalidateSize(), 100);
+    }
+
+    function setMapCoord(lat, lng) {
+      if (_mapMarker) {
+        _mapMarker.setLatLng([lat, lng]);
+      } else {
+        _mapMarker = L.marker([lat, lng], { draggable: true }).addTo(_mapPicker);
+        _mapMarker.on('dragend', function() {
+          const p = _mapMarker.getLatLng();
+          updateCoordFields(p.lat, p.lng);
+        });
+      }
+      updateCoordFields(lat, lng);
+    }
+
+    function updateCoordFields(lat, lng) {
+      document.getElementById('location_lat').value = lat.toFixed(6);
+      document.getElementById('location_lng').value = lng.toFixed(6);
+      const disp = document.getElementById('coordDisplay');
+      disp.textContent = `已選取：${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      disp.style.display = 'block';
+    }
+
+    function closeMapModal() {
+      document.getElementById('mapModal').classList.add('hidden');
+    }
+
+    /* ── 標籤選取 ── */
+    async function loadSubmitTagPicker() {
+      const { data: categories } = await supabase
+        .from('categories').select('*, tags(*)').order('sort_order');
+
+      const el = document.getElementById('submitTagPicker');
+      const visible = (categories || []).filter(c => !c.slug.startsWith('taxon_') && c.tags?.length);
+
+      if (!visible.length) { el.innerHTML = ''; return; }
+
+      el.innerHTML = visible.map(cat => `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:0.72rem; font-weight:700; color:var(--color-text-muted);
+                      text-transform:uppercase; letter-spacing:0.08em; margin-bottom:5px;">
+            ${cat.name}
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px;">
+            ${cat.tags.map(tag => `
+              <span class="submit-tag" data-id="${tag.id}"
+                    onclick="toggleSubmitTag(${tag.id}, this)">${tag.name}</span>
+            `).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleSubmitTag(id, el) {
+      if (selectedTagIds.has(id)) {
+        selectedTagIds.delete(id);
+        el.classList.remove('active');
+      } else {
+        selectedTagIds.add(id);
+        el.classList.add('active');
+      }
+    }
+
+    /* ── 照片上傳 ── */
+    function onDragOver(e) {
+      e.preventDefault();
+      document.getElementById('photoZone').classList.add('dragover');
+    }
+    function onDragLeave() {
+      document.getElementById('photoZone').classList.remove('dragover');
+    }
+    function onDrop(e) {
+      e.preventDefault();
+      document.getElementById('photoZone').classList.remove('dragover');
+      handlePhotoFiles(e.dataTransfer.files);
+    }
+
+    async function handlePhotoFiles(fileList) {
+      for (const file of Array.from(fileList).filter(f => f.type.startsWith('image/'))) {
+        if (file.size > 10 * 1024 * 1024) {
+          showError('照片「' + file.name + '」超過 10 MB，請壓縮後再上傳');
+          continue;
+        }
+        const tempId = Date.now() + '-' + Math.random();
+        uploadedPhotos.push({ tempId, url: null, uploading: true });
+        renderPhotoStrip();
+        try {
+          const ext  = file.name.split('.').pop().toLowerCase();
+          const path = `submissions/${currentUser.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error: upErr } = await supabase.storage
+            .from('submission-photos')
+            .upload(path, file, { cacheControl: '3600', upsert: false });
+          if (upErr) throw upErr;
+          const { data: urlData } = supabase.storage.from('submission-photos').getPublicUrl(path);
+          const idx = uploadedPhotos.findIndex(p => p.tempId === tempId);
+          if (idx !== -1) uploadedPhotos[idx] = { tempId, url: urlData.publicUrl, uploading: false };
+        } catch (e) {
+          uploadedPhotos = uploadedPhotos.filter(p => p.tempId !== tempId);
+          showError('照片上傳失敗：' + e.message);
+        }
+        renderPhotoStrip();
+      }
+    }
+
+    function renderPhotoStrip() {
+      document.getElementById('photoStrip').innerHTML = uploadedPhotos.map((p, i) => `
+        <div class="photo-strip__item">
+          ${p.uploading
+            ? `<div class="photo-strip__img" style="background:var(--color-border);"></div>
+               <div class="photo-strip__uploading">上傳中…</div>`
+            : `<img class="photo-strip__img" src="${p.url}" alt="">
+               <button type="button" class="photo-strip__remove" onclick="removePhoto(${i})">✕</button>`}
+        </div>`).join('');
+    }
+
+    function removePhoto(i) {
+      uploadedPhotos.splice(i, 1);
+      renderPhotoStrip();
+    }
+
+    /* ── 送出投稿 ── */
+    async function submitRecord() {
+      const readyPhotos = uploadedPhotos.filter(p => !p.uploading && p.url);
+      if (!readyPhotos.length) { showError('請至少上傳一張照片'); return; }
+
+      const subName  = document.getElementById('submitter_name').value.trim();
+      const subEmail = document.getElementById('submitter_email').value.trim();
+      if (!subName)  { showError('請填寫紀錄者姓名'); return; }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = '送出中…';
+      document.getElementById('submitError').style.display = 'none';
+
+      const g   = (id) => document.getElementById(id)?.value?.trim() || null;
+      const lat = g('location_lat'), lng = g('location_lng');
+
+      const payload = {
+        submitter_id:     currentUser.id,
+        submitter_name:   subName,
+        submitter_email:  subEmail,
+        photos:           readyPhotos.map(p => p.url),
+        observed_at:      g('observed_at'),
+        location_text:    g('location_text'),
+        location_lat:     lat ? parseFloat(lat) : null,
+        location_lng:     lng ? parseFloat(lng) : null,
+        depth_m:          document.getElementById('depth_m').value ? parseInt(document.getElementById('depth_m').value) : null,
+        behavior_notes:   g('behavior_notes'),
+        name_zh:          g('name_zh'),
+        name_sci:         g('name_sci'),
+        name_author:      g('name_author'),
+        name_year:        document.getElementById('name_year').value ? parseInt(document.getElementById('name_year').value) : null,
+        taxon_phylum:     g('taxon_phylum'),
+        taxon_class:      g('taxon_class'),
+        taxon_subclass:   g('taxon_subclass'),
+        taxon_infraclass: g('taxon_infraclass'),
+        taxon_cohort:     g('taxon_cohort'),
+        taxon_superorder: g('taxon_superorder'),
+        taxon_order:      g('taxon_order'),
+        taxon_suborder:   g('taxon_suborder'),
+        taxon_family:     g('taxon_family'),
+        taxon_genus:      g('taxon_genus'),
+        description:      g('description'),
+        worms_url:        g('worms_url'),
+        species_guess:    g('name_zh') || g('name_sci') || null,
+        tag_ids:          selectedTagIds.size > 0 ? [...selectedTagIds] : null,
+        license_agreed:   true,
+        status:           'pending',
+      };
+
+      const { data, error } = await supabase.from('submissions').insert(payload).select('id').single();
+
+      btn.disabled = false; btn.textContent = '📤 送出投稿';
+
+      if (error) { showError('投稿失敗：' + error.message); return; }
+
+      // 顯示成功畫面
+      document.getElementById('formBody').classList.add('hidden');
+      document.getElementById('successState').classList.remove('hidden');
+      document.getElementById('successId').textContent = `紀錄編號 #${data.id}`;
+    }
+
+    /* ── 重設表單 ── */
+    function resetForm() {
+      uploadedPhotos = [];
+      selectedTagIds = new Set();
+      document.querySelectorAll('.submit-tag.active').forEach(el => el.classList.remove('active'));
+      renderPhotoStrip();
+      document.getElementById('submitError').style.display = 'none';
+      document.getElementById('successState').classList.add('hidden');
+      document.getElementById('formBody').classList.remove('hidden');
+
+      // 清除地圖標記
+      if (_mapMarker) { _mapMarker.remove(); _mapMarker = null; }
+      document.getElementById('coordDisplay').style.display = 'none';
+
+      const fields = ['name_zh','name_sci','name_author','name_year',
+                      'description','worms_url','observed_at','depth_m',
+                      'location_text','location_lat','location_lng','behavior_notes'];
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      document.querySelectorAll('select[data-taxon]').forEach(sel => sel.value = '');
+
+      // 重設日期為今天
+      document.getElementById('observed_at').value = new Date().toISOString().split('T')[0];
+    }
+
+    /* ── 工具 ── */
+    function showError(msg) {
+      const el = document.getElementById('submitError');
+      el.textContent = msg;
+      el.style.display = 'block';
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function showAuthError(el, msg) {
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function translateAuthError(msg) {
+      if (msg.includes('Invalid login credentials')) return '帳號或密碼錯誤';
+      if (msg.includes('Email not confirmed'))       return '請先驗證你的 Email';
+      if (msg.includes('User already registered'))  return '此 Email 已經註冊過了';
+      if (msg.includes('Password should be'))       return '密碼至少需要 8 個字元';
+      return msg;
+    }
+  </script>
+</body>
+</html>

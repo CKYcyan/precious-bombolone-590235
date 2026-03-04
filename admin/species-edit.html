@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>編輯物種 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    /* 區塊標題分隔 */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 32px 0 20px;
+    }
+    .section-divider__line {
+      flex: 1;
+      height: 2px;
+      background: var(--color-border);
+    }
+    .section-divider__label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+
+    /* 多照片上傳 */
+    .photo-upload-zone {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      background: #fafafa;
+    }
+    .photo-upload-zone:hover, .photo-upload-zone.dragover {
+      border-color: var(--color-secondary);
+      background: rgba(42,157,143,0.04);
+    }
+    .photo-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .photo-strip__item {
+      position: relative;
+      width: 96px;
+      height: 72px;
+    }
+    .photo-strip__img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--color-border);
+    }
+    .photo-strip__remove {
+      position: absolute;
+      top: -6px; right: -6px;
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 18px; height: 18px;
+      font-size: 0.65rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .photo-strip__progress {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.75rem;
+    }
+
+    /* 地圖選點 Modal */
+    .map-modal {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .map-modal__inner {
+      background: #fff; border-radius: var(--radius-md);
+      width: 100%; max-width: 740px; height: 500px;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .map-modal__header {
+      padding: 12px 18px; border-bottom: 1px solid var(--color-border);
+      display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+    }
+    #adminMapPickerEl { flex: 1; }
+
+    /* 關聯觀察紀錄卡片 */
+    .linked-record {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      background: #fafafa;
+    }
+    .linked-record__header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .linked-record__name  { font-weight: 700; font-size: 0.9rem; color: var(--color-dark); }
+    .linked-record__meta  { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; }
+    .linked-record__photos {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+    }
+    .linked-record__photo {
+      width: 72px; height: 54px; object-fit: cover;
+      border-radius: var(--radius-sm); border: 1.5px solid var(--color-border);
+    }
+    .linked-record__note {
+      font-size: 0.82rem; color: var(--color-text-muted);
+      margin-top: 6px; line-height: 1.5;
+    }
+
+    /* 觀察紀錄區 提示 */
+    .obs-notice {
+      padding: 12px 16px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      color: #15803d;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title" id="pageTitle">新增物種</div>
+      <div class="admin-topbar__actions">
+        <a href="species.html" class="btn btn--outline btn--sm">← 返回列表</a>
+      </div>
+    </div>
+    <div class="admin-content">
+      <form id="speciesForm">
+        <div style="display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start;">
+
+          <!-- ==================== 左欄 ==================== -->
+          <div style="display:flex; flex-direction:column; gap:0;">
+
+            <!-- ── Part 1：物種分類學資料 ── -->
+            <div class="section-divider">
+              <div class="section-divider__line"></div>
+              <div class="section-divider__label">Part 1 &nbsp;物種資料</div>
+              <div class="section-divider__line"></div>
+            </div>
+
+            <!-- 基本資訊 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">基本資訊</div></div>
+              <div class="form-panel__body">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">中文名 <span class="required">*</span></label>
+                    <input type="text" id="name_zh" class="form-input" required>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">學名 <span class="required">*</span></label>
+                    <input type="text" id="name_sci" class="form-input" required placeholder="Chromodoris annae">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">命名者</label>
+                    <input type="text" id="name_author" class="form-input" placeholder="Bergh">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">命名年份</label>
+                    <input type="number" id="name_year" class="form-input" placeholder="1877">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 分類階層 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header">
+                <div class="form-panel__title">分類階層</div>
+                <a href="tags.html" style="font-size:0.78rem; color:var(--color-secondary);">管理選項 →</a>
+              </div>
+              <div class="form-panel__body">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">門</label>
+                    <select id="taxon_phylum" class="form-select" data-taxon="taxon_phylum"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">綱</label>
+                    <select id="taxon_class" class="form-select" data-taxon="taxon_class"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">亞綱</label>
+                    <select id="taxon_subclass" class="form-select" data-taxon="taxon_subclass"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">下綱</label>
+                    <select id="taxon_infraclass" class="form-select" data-taxon="taxon_infraclass"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">準綱</label>
+                    <select id="taxon_cohort" class="form-select" data-taxon="taxon_cohort"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">總目</label>
+                    <select id="taxon_superorder" class="form-select" data-taxon="taxon_superorder"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">目</label>
+                    <select id="taxon_order" class="form-select" data-taxon="taxon_order"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">亞目</label>
+                    <select id="taxon_suborder" class="form-select" data-taxon="taxon_suborder"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">科</label>
+                    <select id="taxon_family" class="form-select" data-taxon="taxon_family"><option value="">— 選擇 —</option></select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">屬</label>
+                    <select id="taxon_genus" class="form-select" data-taxon="taxon_genus"><option value="">— 選擇 —</option></select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 物種描述 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">物種描述</div></div>
+              <div class="form-panel__body">
+                <div id="descriptionEditor"
+                     style="border:1.5px solid var(--color-border); border-radius:var(--radius-sm); min-height:180px; padding:12px; outline:none;"
+                     contenteditable="true"></div>
+                <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button type="button" onclick="formatText('bold')"      class="btn btn--outline btn--sm"><b>B</b></button>
+                  <button type="button" onclick="formatText('italic')"    class="btn btn--outline btn--sm"><i>I</i></button>
+                  <button type="button" onclick="formatText('underline')" class="btn btn--outline btn--sm"><u>U</u></button>
+                  <button type="button" onclick="insertHeading()"         class="btn btn--outline btn--sm">H2</button>
+                  <button type="button" onclick="formatText('insertUnorderedList')" class="btn btn--outline btn--sm">• 列表</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 外部連結 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">外部連結</div></div>
+              <div class="form-panel__body">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">WoRMS 連結</label>
+                  <input type="url" id="worms_url" class="form-input" placeholder="https://www.marinespecies.org/aphia.php?p=taxdetails&id=…">
+                  <small style="color:var(--color-text-muted); font-size:0.8rem;">貼上 WoRMS 物種頁面的完整網址</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Part 2：觀察紀錄 ── -->
+            <div class="section-divider">
+              <div class="section-divider__line"></div>
+              <div class="section-divider__label">Part 2 &nbsp;觀察紀錄（與投稿格式相同）</div>
+              <div class="section-divider__line"></div>
+            </div>
+
+            <div class="obs-notice">
+              此區塊與一般會員投稿格式相同。填寫後會建立一筆與此物種關聯的觀察紀錄（直接核准）。
+              若目前無觀察資料，可留空，之後再由投稿審核頁新增。
+            </div>
+
+            <!-- 觀察照片 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">觀察照片</div></div>
+              <div class="form-panel__body">
+                <div class="photo-upload-zone" id="photoZone"
+                     onclick="document.getElementById('photoInput').click()"
+                     ondragover="onDragOver(event)"
+                     ondragleave="onDragLeave(event)"
+                     ondrop="onDrop(event)">
+                  <div style="font-size:1.8rem; margin-bottom:6px;">📷</div>
+                  <div style="font-size:0.88rem; color:var(--color-text-muted);">
+                    <strong style="color:var(--color-secondary);">點擊或拖曳</strong>上傳觀察照片（可多張）
+                  </div>
+                </div>
+                <input type="file" id="photoInput" accept="image/*" multiple style="display:none;"
+                       onchange="handlePhotoFiles(this.files)">
+                <div class="photo-strip" id="photoStrip"></div>
+              </div>
+            </div>
+
+            <!-- 觀察資訊 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">觀察資訊</div></div>
+              <div class="form-panel__body">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">觀察日期</label>
+                    <input type="date" id="observed_at" class="form-input">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">水深（公尺）</label>
+                    <input type="number" id="depth_m" class="form-input" placeholder="例：10" min="0">
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                  <label class="form-label">地點描述</label>
+                  <input type="text" id="location_text" class="form-input" placeholder="例：墾丁萬里桐">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                    <label class="form-label" style="margin:0;">GPS 座標</label>
+                    <button type="button" onclick="openAdminMapModal()"
+                            class="btn btn--outline btn--sm" style="font-size:0.8rem;">
+                      📍 地圖選點
+                    </button>
+                  </div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <input type="number" id="location_lat" class="form-input" placeholder="緯度 21.9342" step="0.0000001">
+                    <input type="number" id="location_lng" class="form-input" placeholder="經度 120.7511" step="0.0000001">
+                  </div>
+                  <div id="adminCoordDisplay" style="font-size:0.78rem; color:var(--color-secondary); margin-top:5px; display:none;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 行為描述 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">行為描述</div></div>
+              <div class="form-panel__body">
+                <textarea id="behavior_notes" class="form-textarea" rows="3"
+                          placeholder="觀察到的行為、特徵或補充說明…"></textarea>
+              </div>
+            </div>
+
+            <!-- 紀錄者 -->
+            <div class="form-panel" style="margin-bottom:20px;">
+              <div class="form-panel__header"><div class="form-panel__title">紀錄者資訊</div></div>
+              <div class="form-panel__body">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">姓名</label>
+                    <input type="text" id="submitter_name" class="form-input" placeholder="紀錄者姓名">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="submitter_email" class="form-input" placeholder="email@example.com">
+                  </div>
+                </div>
+                <small style="color:var(--color-text-muted); font-size:0.8rem; margin-top:8px; display:block;">
+                  觀察紀錄區若有填寫照片，系統將用此資訊建立對應的觀察紀錄。
+                </small>
+              </div>
+            </div>
+
+            <!-- ── Part 3：已關聯觀察紀錄（僅編輯模式） ── -->
+            <div id="linkedRecordsSection" style="display:none;">
+              <div class="section-divider">
+                <div class="section-divider__line"></div>
+                <div class="section-divider__label">Part 3 &nbsp;已關聯觀察紀錄</div>
+                <div class="section-divider__line"></div>
+              </div>
+              <div id="linkedRecordsList"></div>
+            </div>
+
+          </div>
+
+          <!-- ==================== 右欄 ==================== -->
+          <div style="display:flex; flex-direction:column; gap:20px;">
+
+            <!-- 標籤設定 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">標籤設定</div></div>
+              <div class="form-panel__body" id="tagsPanel">
+                <div class="spinner"></div>
+              </div>
+            </div>
+
+            <!-- 發布設定 -->
+            <div class="form-panel">
+              <div class="form-panel__header"><div class="form-panel__title">發布設定</div></div>
+              <div class="form-panel__body">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                  <input type="checkbox" id="published" checked style="width:16px; height:16px;">
+                  <span>立即發布（前台可見）</span>
+                </label>
+              </div>
+              <div class="form-panel__footer">
+                <button type="submit" class="btn btn--primary" id="saveBtn">儲存</button>
+                <button type="button" onclick="window.location.href='species.html'" class="btn btn--outline">取消</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- 地圖選點 Modal -->
+<div id="adminMapModal" style="display:none;" class="map-modal">
+  <div class="map-modal__inner">
+    <div class="map-modal__header">
+      <div>
+        <div style="font-weight:700; font-size:0.95rem; color:var(--color-dark);">點擊地圖選擇觀察地點</div>
+        <div style="font-size:0.8rem; color:var(--color-text-muted);">點擊或拖曳圖釘以設定座標</div>
+      </div>
+      <button type="button" onclick="closeAdminMapModal()" class="btn btn--primary btn--sm">✓ 確認座標</button>
+    </div>
+    <div id="adminMapPickerEl"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  let speciesId        = null;
+  let uploadedPhotos   = [];   // { tempId, url, uploading } — 本次新上傳
+  let existingPhotoUrls = [];  // 已儲存的觀察照片 URL
+  let selectedTags  = new Set();
+  let adminProfile  = null;
+  let taxonTagMap   = {};    // { catSlug: { tagName: tagId } }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    adminProfile = auth.profile;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('species');
+
+    // 預填紀錄者
+    document.getElementById('submitter_name').value  = adminProfile?.display_name || '';
+    document.getElementById('submitter_email').value = auth.session.user.email || '';
+
+    const params = new URLSearchParams(window.location.search);
+    speciesId = params.get('id');
+    if (speciesId) document.getElementById('pageTitle').textContent = '編輯物種';
+
+    // 先載入物種資料（填充 selectedTags），再渲染標籤面板（才能正確顯示已選狀態）
+    await loadTaxonDropdowns();
+    if (speciesId) await loadSpecies();
+    await loadTagsPanel();
+  });
+
+  /* ====================================================
+     物種資料載入（編輯模式）
+  ==================================================== */
+  async function loadSpecies() {
+    const { data } = await supabase
+      .from('species')
+      .select('*, species_tags(tag_id)')
+      .eq('id', speciesId)
+      .single();
+    if (!data) return;
+
+    document.getElementById('name_zh').value          = data.name_zh || '';
+    document.getElementById('name_sci').value         = data.name_sci || '';
+    document.getElementById('name_author').value      = data.name_author || '';
+    document.getElementById('name_year').value        = data.name_year || '';
+    document.getElementById('taxon_phylum').value     = data.taxon_phylum || '';
+    document.getElementById('taxon_class').value      = data.taxon_class || '';
+    document.getElementById('taxon_subclass').value   = data.taxon_subclass || '';
+    document.getElementById('taxon_infraclass').value = data.taxon_infraclass || '';
+    document.getElementById('taxon_cohort').value     = data.taxon_cohort || '';
+    document.getElementById('taxon_superorder').value = data.taxon_superorder || '';
+    document.getElementById('taxon_order').value      = data.taxon_order || '';
+    document.getElementById('taxon_suborder').value   = data.taxon_suborder || '';
+    document.getElementById('taxon_family').value     = data.taxon_family || '';
+    document.getElementById('taxon_genus').value      = data.taxon_genus || '';
+    document.getElementById('worms_url').value         = data.worms_url || '';
+    document.getElementById('published').checked      = data.published;
+    document.getElementById('descriptionEditor').innerHTML = data.description || '';
+
+    data.species_tags?.forEach(st => selectedTags.add(st.tag_id));
+
+    // 載入已關聯觀察紀錄
+    await loadLinkedSubmissions();
+
+    // 載入該物種已核准的觀察照片
+    const { data: subs } = await supabase
+      .from('submissions')
+      .select('photos')
+      .eq('species_id', speciesId)
+      .eq('status', 'approved')
+      .not('photos', 'is', null);
+    existingPhotoUrls = [];
+    (subs || []).forEach(sub => {
+      if (Array.isArray(sub.photos)) existingPhotoUrls.push(...sub.photos);
+    });
+    renderPhotoStrip();
+  }
+
+  /* ====================================================
+     分類階層下拉選單
+  ==================================================== */
+  async function loadTaxonDropdowns() {
+    const taxonSlugs = ['taxon_phylum','taxon_class','taxon_subclass','taxon_infraclass',
+                        'taxon_cohort','taxon_superorder','taxon_order','taxon_suborder',
+                        'taxon_family','taxon_genus'];
+
+    const { data: cats } = await supabase
+      .from('categories')
+      .select('slug, tags(name, sort_order)')
+      .in('slug', taxonSlugs);
+    if (!cats) return;
+
+    const taxonMap = {};
+    cats.forEach(cat => {
+      taxonMap[cat.slug] = (cat.tags || []).sort((a, b) => a.sort_order - b.sort_order);
+    });
+
+    document.querySelectorAll('select[data-taxon]').forEach(sel => {
+      const slug    = sel.dataset.taxon;
+      const options = taxonMap[slug] || [];
+      const current = sel.value;
+      sel.innerHTML = '<option value="">— 選擇 —</option>' +
+        options.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+      if (current) sel.value = current;
+    });
+  }
+
+  /* ====================================================
+     標籤面板
+  ==================================================== */
+  async function loadTagsPanel() {
+    const { data: categories } = await supabase
+      .from('categories').select('*, tags(*)').order('sort_order');
+    const panel = document.getElementById('tagsPanel');
+    if (!categories?.length) {
+      panel.innerHTML = '<p style="color:var(--color-text-muted); font-size:0.9rem;">尚無標籤</p>';
+      return;
+    }
+
+    // 建立分類學標籤對應表 { catSlug: { tagName: tagId } }
+    taxonTagMap = {};
+    categories.forEach(cat => {
+      if (cat.slug.startsWith('taxon_')) {
+        taxonTagMap[cat.slug] = {};
+        (cat.tags || []).forEach(tag => { taxonTagMap[cat.slug][tag.name] = tag.id; });
+      }
+    });
+
+    panel.innerHTML = categories.map(cat => `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--color-text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">${cat.name}</div>
+        <div class="tag-picker" id="tagPicker_${cat.id}">
+          ${cat.tags.map(tag => `
+            <span class="tag ${selectedTags.has(tag.id) ? 'selected' : ''}"
+                  data-id="${tag.id}"
+                  onclick="toggleTag(${tag.id}, this)">${tag.name}</span>
+          `).join('')}
+        </div>
+      </div>`).join('');
+
+    // 分類階層下拉選單 → 同步標籤面板
+    document.querySelectorAll('select[data-taxon]').forEach(sel => {
+      sel.addEventListener('change', () => syncTaxonTag(sel.dataset.taxon, sel.value));
+    });
+  }
+
+  function syncTaxonTag(catSlug, newValue) {
+    const catMap = taxonTagMap[catSlug];
+    if (!catMap) return;
+
+    // 取消此分類下所有已選取的標籤
+    Object.values(catMap).forEach(id => {
+      selectedTags.delete(id);
+      const el = document.querySelector(`#tagsPanel .tag[data-id="${id}"]`);
+      if (el) el.classList.remove('selected');
+    });
+
+    // 選取新值對應的標籤
+    if (newValue && catMap[newValue] != null) {
+      const id = catMap[newValue];
+      selectedTags.add(id);
+      const el = document.querySelector(`#tagsPanel .tag[data-id="${id}"]`);
+      if (el) el.classList.add('selected');
+    }
+  }
+
+  function toggleTag(id, el) {
+    if (selectedTags.has(id)) { selectedTags.delete(id); el.classList.remove('selected'); }
+    else { selectedTags.add(id); el.classList.add('selected'); }
+  }
+
+  /* ====================================================
+     已關聯觀察紀錄（編輯模式）
+  ==================================================== */
+  async function loadLinkedSubmissions() {
+    const { data } = await supabase
+      .from('submissions')
+      .select('id, submitter_name, submitter_email, observed_at, location_text, photos, behavior_notes, status')
+      .eq('species_id', speciesId)
+      .order('observed_at', { ascending: false });
+
+    const section = document.getElementById('linkedRecordsSection');
+    const list    = document.getElementById('linkedRecordsList');
+    if (!data?.length) return;
+
+    section.style.display = 'block';
+    list.innerHTML = data.map(r => {
+      const date   = r.observed_at ? new Date(r.observed_at).toLocaleDateString('zh-Hant-TW', { year:'numeric', month:'long', day:'numeric' }) : '日期未填';
+      const photos = Array.isArray(r.photos) ? r.photos : [];
+      const statusLabel = { approved:'已核准', pending:'待審核', rejected:'已拒絕', needs_info:'需補充' }[r.status] || r.status;
+      const statusColor = { approved:'#16a34a', pending:'#d97706', rejected:'#dc2626', needs_info:'#0d7490' }[r.status] || '#888';
+
+      return `
+      <div class="linked-record">
+        <div class="linked-record__header">
+          <div>
+            <div class="linked-record__name">${r.submitter_name || '匿名'}</div>
+            <div class="linked-record__meta">
+              ${date}${r.location_text ? ' · ' + r.location_text : ''}
+              ${r.submitter_email ? ' · ' + r.submitter_email : ''}
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.75rem; font-weight:700; color:${statusColor};">${statusLabel}</span>
+            <a href="submissions.html?highlight=${r.id}" target="_blank"
+               class="btn btn--outline btn--sm" style="font-size:0.75rem;">查看</a>
+          </div>
+        </div>
+        ${photos.length ? `
+        <div class="linked-record__photos">
+          ${photos.map(url => `<img class="linked-record__photo" src="${url}" alt=""
+            onerror="this.onerror=null; this.style.visibility='hidden'">`).join('')}
+        </div>` : ''}
+        ${r.behavior_notes ? `<div class="linked-record__note">${r.behavior_notes}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  /* ====================================================
+     觀察照片上傳（多張）
+  ==================================================== */
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('photoZone').classList.add('dragover');
+  }
+  function onDragLeave() {
+    document.getElementById('photoZone').classList.remove('dragover');
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('photoZone').classList.remove('dragover');
+    handlePhotoFiles(e.dataTransfer.files);
+  }
+
+  async function handlePhotoFiles(fileList) {
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    for (const file of files) {
+      const tempId = Date.now() + '-' + Math.random();
+      uploadedPhotos.push({ tempId, url: null, uploading: true });
+      renderPhotoStrip();
+      try {
+        const url = await uploadImage(file, 'submission-photos');
+        const idx = uploadedPhotos.findIndex(p => p.tempId === tempId);
+        if (idx !== -1) uploadedPhotos[idx] = { tempId, url, uploading: false };
+      } catch (err) {
+        showToast('照片上傳失敗', 'error');
+        uploadedPhotos = uploadedPhotos.filter(p => p.tempId !== tempId);
+      }
+      renderPhotoStrip();
+    }
+  }
+
+  function renderPhotoStrip() {
+    const existingItems = existingPhotoUrls.map((url, i) => `
+      <div class="photo-strip__item" title="已儲存的觀察照片">
+        <img class="photo-strip__img" src="${url}" alt=""
+             style="border-color:var(--color-secondary);"
+             onerror="this.onerror=null; this.style.background='var(--color-border)'">
+        <button type="button" class="photo-strip__remove" onclick="removeExistingPhoto(${i})">✕</button>
+      </div>`).join('');
+
+    const newItems = uploadedPhotos.map((p, i) => `
+      <div class="photo-strip__item">
+        ${p.uploading
+          ? `<div class="photo-strip__img" style="background:var(--color-border);"></div>
+             <div class="photo-strip__progress">上傳中…</div>`
+          : `<img class="photo-strip__img" src="${p.url}" alt="">
+             <button type="button" class="photo-strip__remove" onclick="removePhoto(${i})">✕</button>`}
+      </div>`).join('');
+
+    document.getElementById('photoStrip').innerHTML = existingItems + newItems;
+  }
+
+  function removePhoto(i) {
+    uploadedPhotos.splice(i, 1);
+    renderPhotoStrip();
+  }
+
+  function removeExistingPhoto(i) {
+    existingPhotoUrls.splice(i, 1);
+    renderPhotoStrip();
+  }
+
+  /* ====================================================
+     富文字
+  ==================================================== */
+  function formatText(cmd) {
+    document.getElementById('descriptionEditor').focus();
+    document.execCommand(cmd, false, null);
+  }
+  function insertHeading() {
+    const sel = window.getSelection();
+    if (sel.rangeCount) {
+      const range = sel.getRangeAt(0);
+      const h2 = document.createElement('h2');
+      h2.textContent = sel.toString() || '標題';
+      range.deleteContents();
+      range.insertNode(h2);
+    }
+  }
+
+  /* ====================================================
+     儲存
+  ==================================================== */
+  document.getElementById('speciesForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = '儲存中…';
+
+    // ── Part 1：物種資料 ──
+    const speciesPayload = {
+      name_zh:          document.getElementById('name_zh').value.trim(),
+      name_sci:         document.getElementById('name_sci').value.trim(),
+      name_author:      document.getElementById('name_author').value.trim() || null,
+      name_year:        parseInt(document.getElementById('name_year').value) || null,
+      taxon_phylum:     document.getElementById('taxon_phylum').value.trim() || null,
+      taxon_class:      document.getElementById('taxon_class').value.trim() || null,
+      taxon_subclass:   document.getElementById('taxon_subclass').value.trim() || null,
+      taxon_infraclass: document.getElementById('taxon_infraclass').value.trim() || null,
+      taxon_cohort:     document.getElementById('taxon_cohort').value.trim() || null,
+      taxon_superorder: document.getElementById('taxon_superorder').value.trim() || null,
+      taxon_order:      document.getElementById('taxon_order').value.trim() || null,
+      taxon_suborder:   document.getElementById('taxon_suborder').value.trim() || null,
+      taxon_family:     document.getElementById('taxon_family').value.trim() || null,
+      taxon_genus:      document.getElementById('taxon_genus').value.trim() || null,
+      worms_url:        document.getElementById('worms_url').value.trim() || null,
+      description:      document.getElementById('descriptionEditor').innerHTML,
+      published:        document.getElementById('published').checked,
+      updated_at:       new Date().toISOString(),
+    };
+
+    try {
+      let savedSpeciesId = speciesId ? parseInt(speciesId) : null;
+
+      // 新增或更新物種
+      if (speciesId) {
+        const { error } = await supabase.from('species').update(speciesPayload).eq('id', speciesId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('species').insert(speciesPayload).select('id').single();
+        if (error) throw error;
+        savedSpeciesId = data.id;
+      }
+
+      // 更新標籤
+      const { error: delTagErr } = await supabase.from('species_tags').delete().eq('species_id', savedSpeciesId);
+      if (delTagErr) throw new Error('標籤刪除失敗：' + delTagErr.message);
+      if (selectedTags.size > 0) {
+        const { error: insTagErr } = await supabase.from('species_tags').insert(
+          [...selectedTags].map(tag_id => ({ species_id: savedSpeciesId, tag_id }))
+        );
+        if (insTagErr) throw new Error('標籤儲存失敗：' + insTagErr.message);
+      }
+
+      // 自動封面：新照片 > 既有觀察照片 > 新物種留 null
+      const readyPhotos = uploadedPhotos.filter(p => !p.uploading && p.url);
+      if (readyPhotos.length > 0) {
+        speciesPayload.cover_image = readyPhotos[0].url;
+      } else if (existingPhotoUrls.length > 0) {
+        speciesPayload.cover_image = existingPhotoUrls[0];
+      } else if (!speciesId) {
+        speciesPayload.cover_image = null;
+      }
+
+      // ── Part 2：觀察紀錄（有照片、地點座標或地點描述任一有填才建立）──
+      const lat            = document.getElementById('location_lat').value.trim();
+      const lng            = document.getElementById('location_lng').value.trim();
+      const locationText   = document.getElementById('location_text').value.trim();
+      const hasObsData     = readyPhotos.length > 0 || lat || lng || locationText;
+
+      if (hasObsData) {
+        const subName  = document.getElementById('submitter_name').value.trim();
+        const subEmail = document.getElementById('submitter_email').value.trim();
+
+        if (!subName || !subEmail) {
+          showToast('請填寫紀錄者姓名和 Email', 'error');
+          btn.disabled = false;
+          btn.textContent = '儲存';
+          return;
+        }
+
+        const subPayload = {
+          submitter_id:    adminProfile?.id || null,
+          submitter_name:  subName,
+          submitter_email: subEmail,
+          photos:          readyPhotos.map(p => p.url),
+          observed_at:     document.getElementById('observed_at').value || null,
+          location_text:   locationText || null,
+          location_lat:    lat ? parseFloat(lat) : null,
+          location_lng:    lng ? parseFloat(lng) : null,
+          depth_m:         parseInt(document.getElementById('depth_m').value) || null,
+          species_id:      savedSpeciesId,
+          species_guess:   speciesPayload.name_zh,
+          behavior_notes:  document.getElementById('behavior_notes').value.trim() || null,
+          license_agreed:  true,
+          status:          'approved',
+          reviewer_id:     adminProfile?.id || null,
+          reviewed_at:     new Date().toISOString(),
+        };
+
+        // 編輯模式：找現有的管理員自建紀錄 → UPDATE；否則 INSERT
+        let subError;
+        if (speciesId && adminProfile?.id) {
+          const { data: existing } = await supabase
+            .from('submissions').select('id')
+            .eq('species_id', savedSpeciesId)
+            .eq('submitter_id', adminProfile.id)
+            .eq('reviewer_id',  adminProfile.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (existing?.length) {
+            ({ error: subError } = await supabase.from('submissions')
+              .update(subPayload).eq('id', existing[0].id));
+          } else {
+            ({ error: subError } = await supabase.from('submissions').insert(subPayload));
+          }
+        } else {
+          ({ error: subError } = await supabase.from('submissions').insert(subPayload));
+        }
+        if (subError) throw subError;
+
+        showToast(speciesId ? '物種已更新，觀察紀錄已更新' : '物種已新增，觀察紀錄已建立');
+      } else {
+        showToast(speciesId ? '物種已更新' : '物種已新增');
+      }
+
+      setTimeout(() => window.location.href = 'species.html', 1200);
+    } catch (err) {
+      showToast('儲存失敗：' + err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = '儲存';
+    }
+  });
+
+  /* ====================================================
+     地圖選點
+  ==================================================== */
+  let _adminMap = null;
+  let _adminMarker = null;
+
+  function openAdminMapModal() {
+    document.getElementById('adminMapModal').style.display = 'flex';
+    if (!_adminMap) {
+      _adminMap = L.map('adminMapPickerEl').setView([23.5, 121], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18,
+      }).addTo(_adminMap);
+      _adminMap.on('click', function(e) {
+        adminSetCoord(e.latlng.lat, e.latlng.lng);
+      });
+    }
+    const lat = parseFloat(document.getElementById('location_lat').value);
+    const lng = parseFloat(document.getElementById('location_lng').value);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      adminSetCoord(lat, lng);
+      _adminMap.setView([lat, lng], 12);
+    }
+    setTimeout(() => _adminMap.invalidateSize(), 100);
+  }
+
+  function adminSetCoord(lat, lng) {
+    if (_adminMarker) {
+      _adminMarker.setLatLng([lat, lng]);
+    } else {
+      _adminMarker = L.marker([lat, lng], { draggable: true }).addTo(_adminMap);
+      _adminMarker.on('dragend', function() {
+        const p = _adminMarker.getLatLng();
+        adminUpdateFields(p.lat, p.lng);
+      });
+    }
+    adminUpdateFields(lat, lng);
+  }
+
+  function adminUpdateFields(lat, lng) {
+    document.getElementById('location_lat').value = lat.toFixed(6);
+    document.getElementById('location_lng').value = lng.toFixed(6);
+    const disp = document.getElementById('adminCoordDisplay');
+    disp.textContent = `已選取：${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    disp.style.display = 'block';
+  }
+
+  function closeAdminMapModal() {
+    document.getElementById('adminMapModal').style.display = 'none';
+  }
+</script>
+</body>
+</html>

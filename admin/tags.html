@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>標籤與類別 — 管理員後台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .category-block { margin-bottom: 28px; }
+    .category-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; background: #f8f9fa;
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      margin-bottom: 10px; cursor: pointer;
+    }
+    .category-header:hover { background: #eef2f1; }
+    .category-title { font-weight: 700; color: var(--color-dark); }
+    .category-slug  { font-size: 0.8rem; color: var(--color-text-muted); font-family: monospace; }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+    .tag-item {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 99px; font-size: 0.85rem;
+      background: rgba(42,157,143,0.1); color: var(--color-secondary);
+      border: 1px solid rgba(42,157,143,0.2);
+    }
+    .tag-item__delete {
+      background: none; border: none; cursor: pointer;
+      color: var(--color-text-muted); font-size: 0.8rem; line-height: 1;
+      padding: 0; transition: var(--transition);
+    }
+    .tag-item__delete:hover { color: #e74c3c; }
+    .add-tag-form { display: flex; gap: 8px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarPlaceholder"></div>
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">標籤與類別管理</div>
+    </div>
+    <div class="admin-content">
+      <div style="display:grid; grid-template-columns:1fr 360px; gap:24px; align-items:start;">
+
+        <!-- 左：類別與標籤列表 -->
+        <div class="panel">
+          <div class="panel__header">
+            <div class="panel__title">所有類別與標籤</div>
+          </div>
+          <div class="panel__body" id="categoryList">
+            <div class="spinner"></div>
+          </div>
+        </div>
+
+        <!-- 右：新增表單 -->
+        <div style="display:flex; flex-direction:column; gap:20px;">
+
+          <!-- 新增類別 -->
+          <div class="form-panel">
+            <div class="form-panel__header"><div class="form-panel__title">新增類別</div></div>
+            <div class="form-panel__body">
+              <div class="form-group">
+                <label class="form-label">類別名稱 <span class="required">*</span></label>
+                <input type="text" id="newCatName" class="form-input" placeholder="例：食性">
+              </div>
+              <div class="form-group">
+                <label class="form-label">識別碼（slug）<span class="required">*</span></label>
+                <input type="text" id="newCatSlug" class="form-input" placeholder="例：diet">
+                <small style="color:var(--color-text-muted); font-size:0.8rem;">只能使用英文小寫、數字、連字號</small>
+              </div>
+            </div>
+            <div class="form-panel__footer">
+              <button onclick="addCategory()" class="btn btn--primary btn--sm">新增類別</button>
+            </div>
+          </div>
+
+          <!-- 刪除類別提示 -->
+          <div style="background:#fef3c7; border:1px solid #fcd34d; border-radius:var(--radius-sm); padding:14px 16px; font-size:0.85rem; color:#92400e;">
+            ⚠️ 刪除類別時，該類別下的所有標籤也會一起刪除。
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="admin.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await requireAdmin();
+    if (!auth) return;
+    document.getElementById('sidebarPlaceholder').innerHTML = renderSidebar('tags');
+    await loadCategories();
+  });
+
+  async function loadCategories() {
+    const { data, error } = await supabase
+      .from('categories').select('*, tags(*)').order('sort_order');
+    if (error) { showToast('載入失敗', 'error'); return; }
+    renderCategories(data || []);
+  }
+
+  function renderCategories(categories) {
+    const el = document.getElementById('categoryList');
+    if (!categories.length) {
+      el.innerHTML = '<div class="empty-state"><p class="empty-state__text">尚無類別</p></div>';
+      return;
+    }
+    el.innerHTML = categories.map(cat => `
+      <div class="category-block">
+        <div class="category-header">
+          <div>
+            <div class="category-title">${cat.name}</div>
+            <div class="category-slug">${cat.slug}</div>
+          </div>
+          <button onclick="deleteCategory(${cat.id}, '${cat.name}')"
+                  class="btn btn--sm" style="border:1px solid #fecaca; color:#b91c1c;">刪除類別</button>
+        </div>
+
+        <div class="tag-list" id="tagList_${cat.id}">
+          ${(cat.tags||[]).map(tag => `
+            <span class="tag-item">
+              ${tag.name}
+              <button class="tag-item__delete" onclick="deleteTag(${tag.id}, '${tag.name}', ${cat.id})" title="刪除">✕</button>
+            </span>`).join('')}
+        </div>
+
+        <div class="add-tag-form">
+          <input type="text" id="newTag_${cat.id}" class="form-input" placeholder="輸入新標籤名稱" style="flex:1;">
+          <button onclick="addTag(${cat.id})" class="btn btn--primary btn--sm">新增</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // 新增類別
+  async function addCategory() {
+    const name = document.getElementById('newCatName').value.trim();
+    const slug = document.getElementById('newCatSlug').value.trim();
+    if (!name || !slug) { showToast('請填寫名稱和識別碼', 'error'); return; }
+    if (!/^[a-z0-9-]+$/.test(slug)) { showToast('識別碼只能使用英文小寫、數字、連字號', 'error'); return; }
+
+    const { error } = await supabase.from('categories').insert({ name, slug });
+    if (error) { showToast(error.code === '23505' ? '識別碼已存在' : '新增失敗', 'error'); return; }
+
+    showToast(`類別「${name}」已新增`);
+    document.getElementById('newCatName').value = '';
+    document.getElementById('newCatSlug').value = '';
+    await loadCategories();
+  }
+
+  // 新增標籤
+  async function addTag(categoryId) {
+    const input = document.getElementById(`newTag_${categoryId}`);
+    const name  = input.value.trim();
+    if (!name) { showToast('請輸入標籤名稱', 'error'); return; }
+    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\u4e00-\u9fff-]/g, '');
+
+    const { error } = await supabase.from('tags').insert({ category_id: categoryId, name, slug });
+    if (error) { showToast('新增失敗', 'error'); return; }
+
+    showToast(`標籤「${name}」已新增`);
+    input.value = '';
+    await loadCategories();
+  }
+
+  // 刪除標籤
+  async function deleteTag(id, name, categoryId) {
+    showConfirm('刪除標籤', `確定要刪除標籤「${name}」嗎？`, async () => {
+      const { error } = await supabase.from('tags').delete().eq('id', id);
+      if (error) { showToast('刪除失敗', 'error'); return; }
+      showToast(`標籤「${name}」已刪除`);
+      await loadCategories();
+    });
+  }
+
+  // 刪除類別
+  async function deleteCategory(id, name) {
+    showConfirm('刪除類別', `確定要刪除類別「${name}」及其所有標籤嗎？`, async () => {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) { showToast('刪除失敗', 'error'); return; }
+      showToast(`類別「${name}」已刪除`);
+      await loadCategories();
+    });
+  }
+
+  // 自動產生 slug
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('newCatName')?.addEventListener('input', (e) => {
+      const slug = e.target.value.toLowerCase().trim()
+        .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      document.getElementById('newCatSlug').value = slug;
+    });
+  });
+</script>
+</body>
+</html>

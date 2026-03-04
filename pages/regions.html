@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台灣觀察地區 — 台灣海蛞蝓紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .region-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .region-card {
+      background: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+      transition: var(--transition);
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--color-text);
+      display: block;
+    }
+    .region-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-3px);
+      border-color: var(--color-secondary);
+      color: var(--color-text);
+    }
+    .region-card__banner {
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+    }
+    .region-card__body { padding: 14px 18px; }
+    .region-card__name { font-weight: 700; font-size: 1rem; color: var(--color-dark); margin-bottom: 4px; }
+    .region-card__sites { font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 8px; line-height: 1.6; }
+    .region-card__count {
+      font-size: 0.8rem; font-weight: 700;
+      color: var(--color-secondary);
+    }
+    .region-card__count span { color: var(--color-text-muted); font-weight: 400; }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .stat-item {
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-item__num { font-size: 2rem; font-weight: 700; color: var(--color-secondary); }
+    .stat-item__label { font-size: 0.85rem; color: var(--color-text-muted); margin-top: 4px; }
+
+    @media (max-width: 768px) {
+      .region-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-bar   { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .region-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-placeholder"></div>
+
+  <main class="main-content">
+    <div class="page-hero">
+      <div class="container">
+        <div class="page-hero__label">Regions</div>
+        <h1 class="page-hero__title">台灣觀察地區</h1>
+        <p class="page-hero__subtitle">台灣四面環海，各地海域孕育豐富的海蛞蝓多樣性</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="container">
+
+        <!-- 統計 -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <div class="stat-item__num" id="statSpecies">—</div>
+            <div class="stat-item__label">收錄物種數</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-item__num" id="statRecords">—</div>
+            <div class="stat-item__label">觀察紀錄筆數</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-item__num" id="statRegions">8</div>
+            <div class="stat-item__label">主要觀察地區</div>
+          </div>
+        </div>
+
+        <!-- 地區列表 -->
+        <div class="region-grid" id="regionGrid">
+          <!-- 靜態地區卡片，點擊連至物種資料庫搜尋 -->
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-placeholder"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/template.js"></script>
+  <script src="../js/nav.js"></script>
+  <script>
+    const REGIONS = [
+      {
+        name: '墾丁',
+        emoji: '🌊',
+        color: '#e0f2fe',
+        sites: '萬里桐、後壁湖、眺石、砂島',
+        desc: '台灣南端，全年水溫偏暖，是海蛞蝓種類最豐富的地區之一。',
+        keyword: '墾丁',
+      },
+      {
+        name: '小琉球',
+        emoji: '🐢',
+        color: '#d1fae5',
+        sites: '花瓶岩、美人洞、漁埕尾、杉福',
+        desc: '珊瑚礁生態豐富，能見度高，適合水下觀察。',
+        keyword: '小琉球',
+      },
+      {
+        name: '綠島',
+        emoji: '🦈',
+        color: '#cffafe',
+        sites: '石朗、大白沙、石珊瑚區',
+        desc: '黑潮流經，海水清澈，珊瑚覆蓋率高。',
+        keyword: '綠島',
+      },
+      {
+        name: '蘭嶼',
+        emoji: '🐠',
+        color: '#ede9fe',
+        sites: '八代灣、情人洞、野銀',
+        desc: '位於蘭嶼，遠離塵囂，原始海洋生態保留完整。',
+        keyword: '蘭嶼',
+      },
+      {
+        name: '東北角',
+        emoji: '🪸',
+        color: '#fce7f3',
+        sites: '龍洞、卯澳、石梯坑、馬崗',
+        desc: '礁岩海岸地形豐富，是北台灣海蛞蝓的重要觀察地點。',
+        keyword: '東北角',
+      },
+      {
+        name: '澎湖',
+        emoji: '🌺',
+        color: '#fef3c7',
+        sites: '南方四島、吉貝、員貝、望安',
+        desc: '珊瑚礁與岩礁並存，生物多樣性高。',
+        keyword: '澎湖',
+      },
+      {
+        name: '東部',
+        emoji: '🏔️',
+        color: '#ecfdf5',
+        sites: '成功、石梯坪、花蓮七星潭',
+        desc: '黑潮帶來豐富的洋流生物，水質清澈。',
+        keyword: '東部',
+      },
+      {
+        name: '北部',
+        emoji: '🌁',
+        color: '#f1f5f9',
+        sites: '野柳、富貴角、淡水',
+        desc: '溫帶與亞熱帶物種交會地帶，季節性變化明顯。',
+        keyword: '北部',
+      },
+    ];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 載入統計
+      const [{ count: speciesCount }, { count: recordsCount }] = await Promise.all([
+        supabase.from('species').select('*', { count: 'exact', head: true }).eq('published', true),
+        supabase.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+      ]);
+      document.getElementById('statSpecies').textContent = speciesCount ?? '—';
+      document.getElementById('statRecords').textContent = recordsCount ?? '—';
+
+      // 載入各地區紀錄數
+      const { data: locData } = await supabase
+        .from('submissions')
+        .select('location_text')
+        .eq('status', 'approved')
+        .not('location_text', 'is', null);
+
+      const locTexts = (locData || []).map(r => r.location_text || '');
+
+      // 渲染地區卡片
+      document.getElementById('regionGrid').innerHTML = REGIONS.map(r => {
+        const cnt = locTexts.filter(t => t.includes(r.keyword)).length;
+        return `
+        <a href="species/index.html" class="region-card">
+          <div class="region-card__banner" style="background:${r.color};">
+            ${r.emoji}
+          </div>
+          <div class="region-card__body">
+            <div class="region-card__name">${r.name}</div>
+            <div class="region-card__sites">${r.sites}</div>
+            <p style="font-size:0.82rem; color:var(--color-text-muted); margin:0 0 8px; line-height:1.6;">${r.desc}</p>
+            ${cnt > 0 ? `<div class="region-card__count">${cnt} 筆 <span>觀察紀錄</span></div>` : ''}
+          </div>
+        </a>`;
+      }).join('');
+    });
+  </script>
+</body>
+</html>
