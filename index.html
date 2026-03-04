@@ -452,7 +452,7 @@
 
         container.innerHTML = (data && data.length > 0)
           ? data.map(s => `
-              <a href="/pages/species/${s.id}.html" class="card">
+              <a href="/pages/species/species.html?id=${s.id}" class="card">
                 <img class="card__image" src="${s.cover_image || ''}" alt="${s.name_zh}"
                      onerror="this.style.background='var(--color-border)'">
                 <div class="card__body">
@@ -481,7 +481,7 @@
 
         container.innerHTML = (data && data.length > 0)
           ? data.map(a => `
-              <a href="/pages/knowledge/${a.id}.html" class="card" style="display:flex; flex-direction:row;">
+              <a href="/pages/knowledge/article.html?slug=${a.slug}" class="card" style="display:flex; flex-direction:row;">
                 <img style="width:140px; height:100%; object-fit:cover; flex-shrink:0;"
                      src="${a.cover_image || ''}" alt="${a.title}"
                      onerror="this.style.background='var(--color-border)'">
@@ -512,7 +512,7 @@
 
         container.innerHTML = (data && data.length > 0)
           ? data.map(s => `
-              <a href="/pages/species/${s.species_id}.html" class="latest-photo-item" title="${s.species?.name_zh || ''}">
+              <a href="/pages/species/species.html?id=${s.species_id}" class="latest-photo-item" title="${s.species?.name_zh || ''}">
                 <img src="${s.photos?.[0] || ''}" alt="${s.species?.name_zh || ''}"
                      data-lightbox="${s.photos?.[0] || ''}"
                      onerror="this.style.background='var(--color-border)'">
