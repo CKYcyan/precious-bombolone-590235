@@ -112,6 +112,41 @@
   </div>
 </div>
 
+<!-- 編輯照片 Modal -->
+<div class="confirm-overlay" id="editModal">
+  <div class="confirm-box" style="max-width:520px; width:95%;">
+    <div class="confirm-box__title">編輯照片資訊</div>
+    <div style="margin-top:20px; display:flex; flex-direction:column; gap:14px;">
+      <div>
+        <label class="form-label">關聯物種</label>
+        <select id="editSpeciesSelect" class="form-select"></select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label class="form-label">攝影者</label>
+          <input type="text" id="editPhotographer" class="form-input" placeholder="攝影者姓名">
+        </div>
+        <div>
+          <label class="form-label">拍攝地點</label>
+          <input type="text" id="editLocation" class="form-input" placeholder="例：小琉球">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">拍攝日期</label>
+        <input type="date" id="editTakenAt" class="form-input">
+      </div>
+      <div>
+        <label class="form-label">說明</label>
+        <textarea id="editDescription" class="form-textarea" rows="2" placeholder="照片說明（選填）"></textarea>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+      <button class="btn btn--outline btn--sm" onclick="closeEditModal()">取消</button>
+      <button class="btn btn--primary btn--sm" id="editSaveBtn" onclick="submitEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
 <script src="../js/config.js"></script>
 <script src="admin.js"></script>
@@ -167,6 +202,7 @@
 
     const el = document.getElementById('galleryGrid');
     const items = data || [];
+    window._galleryData = items;
     document.getElementById('totalCount').textContent = `（共 ${items.length} 張）`;
 
     if (!items.length) {
@@ -183,7 +219,8 @@
           <div class="gallery-item__meta sci-name">${item.species?.name_sci || ''}</div>
           <div class="gallery-item__meta">${[item.photographer, item.location, item.taken_at].filter(Boolean).join(' · ')}</div>
           <div class="gallery-item__actions">
-            <button onclick="deletePhoto(${item.id})" class="btn btn--sm" style="border:1px solid #fecaca;color:#b91c1c;width:100%;">刪除</button>
+            <button onclick="openEditModal(${item.id})" class="btn btn--outline btn--sm" style="flex:1;">編輯</button>
+            <button onclick="deletePhoto(${item.id})" class="btn btn--sm" style="border:1px solid #fecaca;color:#b91c1c;flex:1;">刪除</button>
           </div>
         </div>
       </div>`).join('')}
@@ -227,6 +264,53 @@
       btn.disabled = false;
       btn.textContent = '上傳';
     }
+  }
+
+  let editingId = null;
+
+  function openEditModal(id) {
+    const item = (window._galleryData || []).find(g => g.id === id);
+    if (!item) return;
+    editingId = id;
+
+    // 填入現有資料
+    const sel = document.getElementById('editSpeciesSelect');
+    sel.innerHTML = '<option value="">— 不關聯物種 —</option>' +
+      allSpecies.map(s => `<option value="${s.id}" ${item.species_id == s.id ? 'selected' : ''}>${s.name_zh} (${s.name_sci})</option>`).join('');
+
+    document.getElementById('editPhotographer').value  = item.photographer  || '';
+    document.getElementById('editLocation').value      = item.location      || '';
+    document.getElementById('editTakenAt').value       = item.taken_at      || '';
+    document.getElementById('editDescription').value   = item.description   || '';
+
+    document.getElementById('editModal').classList.add('show');
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('show');
+    editingId = null;
+  }
+
+  async function submitEdit() {
+    if (!editingId) return;
+    const btn = document.getElementById('editSaveBtn');
+    btn.disabled = true; btn.textContent = '儲存中…';
+
+    const payload = {
+      species_id:   document.getElementById('editSpeciesSelect').value || null,
+      photographer: document.getElementById('editPhotographer').value.trim() || null,
+      location:     document.getElementById('editLocation').value.trim() || null,
+      taken_at:     document.getElementById('editTakenAt').value || null,
+      description:  document.getElementById('editDescription').value.trim() || null,
+    };
+
+    const { error } = await supabase.from('gallery').update(payload).eq('id', editingId);
+    btn.disabled = false; btn.textContent = '儲存';
+
+    if (error) { showToast('儲存失敗：' + error.message, 'error'); return; }
+    showToast('已儲存');
+    closeEditModal();
+    await loadGallery();
   }
 
   async function deletePhoto(id) {
