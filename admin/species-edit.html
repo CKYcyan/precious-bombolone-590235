@@ -790,12 +790,18 @@
 
       // 自動封面：新照片 > 既有觀察照片 > 新物種留 null
       const readyPhotos = uploadedPhotos.filter(p => !p.uploading && p.url);
+      let newCoverImage;
       if (readyPhotos.length > 0) {
-        speciesPayload.cover_image = readyPhotos[0].url;
+        newCoverImage = readyPhotos[0].url;
       } else if (existingPhotoUrls.length > 0) {
-        speciesPayload.cover_image = existingPhotoUrls[0];
+        newCoverImage = existingPhotoUrls[0];
       } else if (!speciesId) {
-        speciesPayload.cover_image = null;
+        newCoverImage = null;
+      }
+      if (newCoverImage !== undefined) {
+        const { error: coverErr } = await supabase
+          .from('species').update({ cover_image: newCoverImage }).eq('id', savedSpeciesId);
+        if (coverErr) throw coverErr;
       }
 
       // ── Part 2：觀察紀錄（有照片、地點座標或地點描述任一有填才建立）──
